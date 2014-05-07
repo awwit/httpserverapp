@@ -1,0 +1,5 @@
+Name: httpserverapp
+Description: 
+Version: 0.1
+Libs: -L"/media/projects/httpserverapp/httpserverapp/bin/Debug" -lhttpserverapp
+Cflags: -I"/media/projects/httpserverapp/httpserverapp"
