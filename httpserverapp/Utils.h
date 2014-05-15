@@ -46,4 +46,10 @@ namespace Utils
 	void rawFilesInfoToFilesIncoming(std::unordered_multimap<std::string, HttpServer::FileIncoming> &, const Utils::raw_fileinfo [], const size_t);
 	void destroyRawPairs(Utils::raw_pair [], const size_t);
 	void destroyRawFilesInfo(Utils::raw_fileinfo [], const size_t);
+
+	time_t stringTimeToTimestamp(const std::string &);
+
+	std::string getDatetimeStringValue(const time_t = -1, const bool = false);
+
+	size_t getNumberLength(const size_t number);
 };

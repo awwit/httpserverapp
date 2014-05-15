@@ -1,5 +1,5 @@
 Name: httpserverapp
 Description: 
 Version: 0.1
-Libs: -L"/media/projects/httpserverapp/httpserverapp/bin/Debug" -lhttpserverapp
+Libs: -L"/media/projects/httpserverapp/httpserverapp/bin/Release" -lhttpserverapp
 Cflags: -I"/media/projects/httpserverapp/httpserverapp"

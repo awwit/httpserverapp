@@ -46,7 +46,7 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 
 	if (file)
 	{
-	//	proc_response.headers["Connection"] = "Keep-Alive";
+		proc_response.headers["Connection"] = "keep-alive";
 		proc_response.headers["X-Sendfile"] = absolute_path;
 	}
 	else

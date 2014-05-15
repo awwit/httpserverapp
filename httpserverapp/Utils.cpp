@@ -17,7 +17,7 @@ namespace Utils
 			return str.clear();
 		}
 
-		str.assign(str.begin() + str.find_first_not_of(" \t\n\v\f\r"), str.begin() + last + 1);
+		str.assign(str.cbegin() + str.find_first_not_of(" \t\n\v\f\r"), str.cbegin() + last + 1);
 	}
 
 	char *stlStringToPChar(const std::string &str)
@@ -122,7 +122,7 @@ namespace Utils
 	{
 		for (size_t i = 0; i < count; ++i)
 		{
-			map.emplace(raw[i].key, raw[i].value);
+			map.emplace(raw[i].key ? raw[i].key : "", raw[i].value);
 		}
 	}
 
@@ -181,5 +181,93 @@ namespace Utils
 
 			delete[] raw;
 		}
+	}
+
+	time_t stringTimeToTimestamp(const std::string &strTime)
+	{
+	/*	static const std::unordered_map<std::string, int> map_days {
+			{"Sun", 0}, {"Mon", 1}, {"Tue", 2}, {"Wed", 3}, {"Thu", 4}, {"Fri", 5}, {"Sat", 6}
+		};*/
+
+		static const std::unordered_map<std::string, int> map_months {
+			{"Jan", 0}, {"Feb", 1}, {"Mar", 2}, {"Apr", 3}, {"May", 4}, {"Jun", 5}, {"Jul", 6}, {"Aug", 7}, {"Sep", 8}, {"Oct", 9}, {"Nov", 10}, {"Dec", 11}
+		};
+
+		char *s_mon = new char[32];
+		memset(s_mon, 0, 32);
+
+		struct tm tc = {0};
+
+		// Parse RFC 822
+	#ifdef WIN32
+		if (std::numeric_limits<int>::max() != sscanf_s(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
+	#else
+		if (std::numeric_limits<int>::max() != sscanf(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
+	#endif
+		{
+			tc.tm_year -= 1900;
+
+			auto it_mon = map_months.find(s_mon);
+
+			if (map_months.end() != it_mon)
+			{
+				tc.tm_mon = it_mon->second;
+			}
+		}
+
+		delete[] s_mon;
+
+		return mktime(&tc);
+	}
+
+	std::string getDatetimeStringValue(const time_t tTime, const bool isGmtTime)
+	{
+		char buf[64];
+
+		time_t cur_time = tTime;
+
+		if (-1 == tTime)
+		{
+			time(&cur_time);
+		}
+
+	#ifdef WIN32
+		struct tm stm = {0};
+
+		if (isGmtTime)
+		{
+			localtime_s(&stm, &cur_time);
+		}
+		else
+		{
+			gmtime_s(&stm, &cur_time);
+		}
+
+		// RFC 822
+		strftime(buf, 64, "%a, %d %b %Y %H:%M:%S GMT", &stm);
+	#else
+		struct tm *ptm = isGmtTime ? localtime(&cur_time) : gmtime(&cur_time);
+
+		// RFC 822
+		strftime(buf, 64, "%a, %d %b %G %H:%M:%S GMT", ptm);
+	#endif
+
+		return std::string(buf);
+	}
+
+	size_t getNumberLength(const size_t number)
+	{
+		size_t length = 0;
+
+		size_t n = number;
+
+		do
+		{
+			++length;
+			n /= 10;
+		}
+		while (n);
+
+		return length;
 	}
 };

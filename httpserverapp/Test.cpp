@@ -11,7 +11,7 @@ bool test(HttpServer::ServerRequest &request, HttpServer::ServerResponse &respon
 
 	headers_outgoing[""] = "HTTP/1.1 200 OK";
 	headers_outgoing["Content-Type"] = "text/html; charset=utf-8";
-	headers_outgoing["Connection"] = "Keep-Alive";
+	headers_outgoing["Connection"] = "keep-alive";
 //	headers_outgoing["Content-Type"] = "text/plain; charset=utf-8";
 //	headers_outgoing["Access-Control-Allow-Origin"] = "*";
 
@@ -35,7 +35,7 @@ bool test(HttpServer::ServerRequest &request, HttpServer::ServerResponse &respon
 		s += v->first + ": " + v->second + "\n";
 	}
 
-	/*	s = "\
+		s = "\
 <table width=\"100%\">\
 <tr>\
 	<td>1<td>\
@@ -45,7 +45,7 @@ bool test(HttpServer::ServerRequest &request, HttpServer::ServerResponse &respon
 	<td>3<td>\
 	<td>4<td>\
 </tr>\
-</table>";*/
+</table>";
 
 	headers_outgoing["Content-Length"] = std::to_string(s.length() );
 
@@ -67,7 +67,8 @@ bool test(HttpServer::ServerRequest &request, HttpServer::ServerResponse &respon
 
 	s = headers + s;
 
-	write_len = socket.send(s);
+	std::chrono::milliseconds timeout(5000);
+	write_len = socket.nonblock_send(s, timeout);
 
 	return EXIT_SUCCESS;
 }
