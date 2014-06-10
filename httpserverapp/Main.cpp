@@ -68,6 +68,14 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 	return result;
 }
 
+DLLEXPORT void application_clear(Utils::raw_pair headers[], const size_t headers_count)
+{
+	if (headers && headers_count)
+	{
+		destroyRawPairs(headers, headers_count);
+	}
+}
+
 DLLEXPORT void application_final()
 {
 	
