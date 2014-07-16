@@ -7,9 +7,6 @@ namespace Utils
 {
 	void trim(std::string &str)
 	{
-	//	str.erase(std::find_if(str.rbegin(), str.rend(), std::not1(std::ptr_fun<int, int>(std::isspace) ) ).base(), str.end() );
-	//	str.erase(str.begin(), std::find_if(str.begin(), str.end(), std::not1(std::ptr_fun<int, int>(std::isspace) ) ) );
-
 		size_t last = str.find_last_not_of(" \t\n\v\f\r");
 
 		if (std::string::npos == last)
@@ -29,9 +26,9 @@ namespace Utils
 		{
 			s = new char[length + 1];
 		#ifdef WIN32
-			strcpy_s(s, length + 1, str.c_str() );
+			::strcpy_s(s, length + 1, str.c_str() );
 		#elif POSIX
-			strcpy(s, str.c_str() );
+			::strcpy(s, str.c_str() );
 			s[length] = '\0';
 		#else
 			#error "Undefine platform"
@@ -109,11 +106,11 @@ namespace Utils
 			{
 				arr[i].key = stlStringToPChar(it->first);
 
-				const HttpServer::FileIncoming &info = it->second;
+				const HttpServer::FileIncoming &file = it->second;
 
-				arr[i].file_name = stlStringToPChar(info.getName() );
-				arr[i].file_type = stlStringToPChar(info.getType() );
-				arr[i].file_size = info.getSize();
+				arr[i].file_name = stlStringToPChar(file.getName() );
+				arr[i].file_type = stlStringToPChar(file.getType() );
+				arr[i].file_size = file.getSize();
 			}
 		}
 	}
@@ -193,16 +190,17 @@ namespace Utils
 			{"Jan", 0}, {"Feb", 1}, {"Mar", 2}, {"Apr", 3}, {"May", 4}, {"Jun", 5}, {"Jul", 6}, {"Aug", 7}, {"Sep", 8}, {"Oct", 9}, {"Nov", 10}, {"Dec", 11}
 		};
 
-		char *s_mon = new char[32];
-		memset(s_mon, 0, 32);
+		const size_t str_mon_length = 32;
+		char *s_mon = new char[str_mon_length];
+		::memset(s_mon, 0, str_mon_length);
 
-		struct tm tc = {0};
+		struct ::tm tc = {0};
 
 		// Parse RFC 822
 	#ifdef WIN32
-		if (std::numeric_limits<int>::max() != sscanf_s(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
+		if (std::numeric_limits<int>::max() != ::sscanf_s(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, str_mon_length, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
 	#else
-		if (std::numeric_limits<int>::max() != sscanf(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
+		if (std::numeric_limits<int>::max() != ::sscanf(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
 	#endif
 		{
 			tc.tm_year -= 1900;
@@ -217,39 +215,39 @@ namespace Utils
 
 		delete[] s_mon;
 
-		return mktime(&tc);
+		return ::mktime(&tc);
 	}
 
-	std::string getDatetimeStringValue(const time_t tTime, const bool isGmtTime)
+	std::string getDatetimeStringValue(const ::time_t tTime, const bool isGmtTime)
 	{
 		char buf[64];
 
-		time_t cur_time = tTime;
+		::time_t cur_time = tTime;
 
-		if (-1 == tTime)
+		if (std::numeric_limits<::time_t>::max() == tTime)
 		{
-			time(&cur_time);
+			::time(&cur_time);
 		}
 
 	#ifdef WIN32
-		struct tm stm = {0};
+		struct ::tm stm = {0};
 
 		if (isGmtTime)
 		{
-			localtime_s(&stm, &cur_time);
+			::localtime_s(&stm, &cur_time);
 		}
 		else
 		{
-			gmtime_s(&stm, &cur_time);
+			::gmtime_s(&stm, &cur_time);
 		}
 
 		// RFC 822
-		strftime(buf, 64, "%a, %d %b %Y %H:%M:%S GMT", &stm);
+		::strftime(buf, 64, "%a, %d %b %Y %H:%M:%S GMT", &stm);
 	#else
-		struct tm *ptm = isGmtTime ? localtime(&cur_time) : gmtime(&cur_time);
+		struct ::tm *ptm = isGmtTime ? localtime(&cur_time) : gmtime(&cur_time);
 
 		// RFC 822
-		strftime(buf, 64, "%a, %d %b %G %H:%M:%S GMT", ptm);
+		::strftime(buf, 64, "%a, %d %b %G %H:%M:%S GMT", ptm);
 	#endif
 
 		return std::string(buf);
@@ -269,5 +267,42 @@ namespace Utils
 		while (n);
 
 		return length;
+	}
+
+	bool parseCookies(const std::string &cookieHeader, std::unordered_multimap<std::string, std::string> &cookies)
+	{
+		if (cookieHeader.empty() )
+		{
+			return false;
+		}
+
+		for (size_t cur_pos = 0, next_value; std::string::npos != cur_pos; cur_pos = next_value)
+		{
+			next_value = cookieHeader.find(' ', cur_pos);
+
+			size_t delimiter = cookieHeader.find('=', cur_pos);
+
+			if (std::string::npos == delimiter || delimiter > next_value)
+			{
+				return false;
+			}
+
+			std::string key = cookieHeader.substr(cur_pos, delimiter - cur_pos);
+			trim(key);
+
+			++delimiter;
+
+			std::string value = cookieHeader.substr(delimiter, std::string::npos != next_value ? next_value - delimiter : next_value);
+			trim(value);
+
+			cookies.emplace(std::move(key), std::move(value) );
+
+			if (std::string::npos != next_value)
+			{
+				++next_value;
+			}
+		}
+
+		return true;
 	}
 };

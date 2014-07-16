@@ -12,11 +12,13 @@ namespace HttpServer
 		size_t file_size;
 
 	private:
-		FileIncoming();
+		FileIncoming() = delete;
 
 	public:
 		FileIncoming(const std::string &, const std::string &, const size_t);
-		~FileIncoming();
+		FileIncoming(const FileIncoming &);
+		FileIncoming(FileIncoming &&);
+		~FileIncoming() = default;
 
 		inline std::string getName() const
 		{

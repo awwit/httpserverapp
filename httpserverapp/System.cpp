@@ -18,7 +18,7 @@ namespace System
 
 		::GetWindowThreadProcessId(hWnd, &process_id);
 
-		if (process_id == ed.process_id)
+		if (process_id == ed.process_id && GetConsoleWindow() != hWnd)
 		{
 			ed.hWnd = hWnd;
 
@@ -29,12 +29,14 @@ namespace System
 	}
 #endif
 
-	bool sendSignal(native_processid_type pid, int signal)
+	bool sendSignal(const native_processid_type pid, const int signal)
 	{
 	#ifdef WIN32
-		EnumData ed = {pid, nullptr};
+		EnumData ed = {pid, 0};
 
-		if (0 == ::EnumWindows(EnumProc, reinterpret_cast<LPARAM>(&ed) ) )
+		::EnumWindows(EnumProc, reinterpret_cast<LPARAM>(&ed) );
+
+		if (0 == ed.hWnd)
 		{
 			return false;
 		}
@@ -57,7 +59,7 @@ namespace System
 			return false;
 		}
 
-		if (false == ::GetFileSizeEx(hFile, reinterpret_cast<PLARGE_INTEGER>(fileSize) ) )
+		if (false == ::GetFileSizeEx(hFile, reinterpret_cast<::PLARGE_INTEGER>(fileSize) ) )
 		{
 			return false;
 		}
@@ -102,8 +104,6 @@ namespace System
 		}
 
 		*fileSize = attrib.st_size;
-
-	//	*fileTime = attrib.st_mtime;
 
 		clock = ::gmtime(&(attrib.st_mtime) );
 

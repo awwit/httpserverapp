@@ -7,8 +7,8 @@ namespace HttpServer
 	{
 	#ifdef WIN32
 		unsigned short version = MAKEWORD(2, 2);
-		WSADATA wsaData = {0};
-		return WSAStartup(version, &wsaData);
+		::WSADATA wsaData = {0};
+		return ::WSAStartup(version, &wsaData);
 	#elif POSIX
 		return 0;
 	#else
@@ -19,7 +19,7 @@ namespace HttpServer
 	int Socket::Cleanup()
 	{
 	#ifdef WIN32
-		return WSACleanup();
+		return ::WSACleanup();
 	#elif POSIX
 		return 0;
 	#else
@@ -27,14 +27,24 @@ namespace HttpServer
 	#endif
 	}
 
-	Socket::Socket(): socket_handle(-1)
+	Socket::Socket(): socket_handle(~0)
 	{
 		
 	}
 
-	Socket::Socket(const System::native_socket_type handle)
+	Socket::Socket(const System::native_socket_type handle) : socket_handle(handle)
 	{
-		socket_handle = handle;
+		
+	}
+
+	Socket::Socket(const Socket &obj) : socket_handle(obj.socket_handle)
+	{
+		
+	}
+
+	Socket::Socket(Socket &&that) : socket_handle(that.socket_handle)
+	{
+		that.socket_handle = ~0;
 	}
 
 	System::native_socket_type Socket::open()
@@ -60,21 +70,21 @@ namespace HttpServer
 
 			if (0 == result)
 			{
-				socket_handle = -1;
+				socket_handle = ~0;
 			}
 
 			return result;
 		}
 
-		return -1;
+		return ~0;
 	}
 
 	int Socket::bind(const int port) const
 	{
-		sockaddr_in sock_addr = {0};
+		::sockaddr_in sock_addr = {0};
 		sock_addr.sin_family = AF_INET;
 		sock_addr.sin_port = htons(port);
-		sock_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		sock_addr.sin_addr.s_addr = ::htonl(INADDR_ANY);
 
 		return ::bind(socket_handle, reinterpret_cast<sockaddr *>(&sock_addr), sizeof(sockaddr_in) );
 	}
@@ -93,7 +103,78 @@ namespace HttpServer
 	#else
 		#error "Undefine platform"
 	#endif
+		return Socket(client_socket);
+	}
 
+	Socket Socket::nonblock_accept() const
+	{
+		System::native_socket_type client_socket = ~0;
+	#ifdef WIN32
+		::fd_set readset;
+		FD_ZERO(&readset);
+		FD_SET(socket_handle, &readset);
+
+		if (0 < ::select(socket_handle + 1, &readset, nullptr, nullptr, nullptr) )
+		{
+			if (FD_ISSET(socket_handle, &readset) )
+			{
+				client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<int *>(nullptr) );
+			}
+		}
+	#elif POSIX
+		::fd_set readset;
+		FD_ZERO(&readset);
+		FD_SET(socket_handle, &readset);
+
+		if (0 < ::select(socket_handle + 1, &readset, nullptr, nullptr, nullptr) )
+		{
+			if (FD_ISSET(socket_handle, &readset) )
+			{
+				client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<socklen_t *>(nullptr) );
+			}
+		}
+	#else
+		#error "Undefine platform"
+	#endif
+		return Socket(client_socket);
+	}
+
+	Socket Socket::nonblock_accept(const std::chrono::milliseconds &timeWait) const
+	{
+		System::native_socket_type client_socket = ~0;
+	#ifdef WIN32
+		::fd_set readset;
+		FD_ZERO(&readset);
+		FD_SET(socket_handle, &readset);
+
+		long seconds = timeWait.count() / 1000;
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+
+		if (0 < ::select(socket_handle + 1, &readset, nullptr, nullptr, &timeout) )
+		{
+			if (FD_ISSET(socket_handle, &readset) )
+			{
+				client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<int *>(nullptr) );
+			}
+		}
+	#elif POSIX
+		::fd_set readset;
+		FD_ZERO(&readset);
+		FD_SET(socket_handle, &readset);
+
+		long seconds = timeWait.count() / 1000;
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+
+		if (0 < ::select(socket_handle + 1, &readset, nullptr, nullptr, &timeout) )
+		{
+			if (FD_ISSET(socket_handle, &readset) )
+			{
+				client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<socklen_t *>(nullptr) );
+			}
+		}
+	#else
+		#error "Undefine platform"
+	#endif
 		return Socket(client_socket);
 	}
 
@@ -113,17 +194,29 @@ namespace HttpServer
 		return -1;
 	}
 
-	bool Socket::nonblock(bool isNonBlock)
+	bool Socket::nonblock(const bool isNonBlock) const
 	{
 	#ifdef WIN32
 		unsigned long value = isNonBlock;
-		return 0 == ioctlsocket(socket_handle, FIONBIO, &value);
+		return 0 == ::ioctlsocket(socket_handle, FIONBIO, &value);
 	#elif POSIX
-		return -1 != fcntl(socket_handle, F_SETFL, isNonBlock ? O_NONBLOCK : O_SYNC);
+		return -1 != ::fcntl(socket_handle, F_SETFL, isNonBlock ? O_NONBLOCK : O_SYNC);
 	#else
 		#error "Undefine platform"
 	#endif
 	}
+
+/*	bool Socket::is_nonblock() const
+	{
+	#ifdef WIN32
+		
+	#elif POSIX
+		int flags = ::fcntl(socket_handle, F_GETFL, 0);
+		return (flags != -1) && (flags & O_NONBLOCK);
+	#else
+		#error "Undefine platform"
+	#endif
+	}*/
 
 	size_t Socket::recv(std::vector<std::string::value_type> &buf) const
 	{
@@ -139,14 +232,14 @@ namespace HttpServer
 	size_t Socket::nonblock_recv(std::vector<std::string::value_type> &buf, const std::chrono::milliseconds &timeWait) const
 	{
 	#ifdef WIN32
-		fd_set readset;
+		::fd_set readset;
 		FD_ZERO(&readset);
 		FD_SET(socket_handle, &readset);
 
 		long seconds = timeWait.count() / 1000;
-		timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
 
-		if (0 < select(socket_handle + 1, &readset, nullptr, nullptr, &timeout) )
+		if (0 < ::select(socket_handle + 1, &readset, nullptr, nullptr, &timeout) )
 		{
 			if (FD_ISSET(socket_handle, &readset) )
 			{
@@ -156,14 +249,14 @@ namespace HttpServer
 
 		return std::numeric_limits<size_t>::max();
 	#elif POSIX
-		fd_set readset;
+		::fd_set readset;
 		FD_ZERO(&readset);
 		FD_SET(socket_handle, &readset);
 
 		long seconds = timeWait.count() / 1000;
-		timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
 
-		if (0 < select(socket_handle + 1, &readset, nullptr, nullptr, &timeout) )
+		if (0 < ::select(socket_handle + 1, &readset, nullptr, nullptr, &timeout) )
 		{
 			if (FD_ISSET(socket_handle, &readset) )
 			{
@@ -202,14 +295,14 @@ namespace HttpServer
 	size_t Socket::nonblock_send(const std::string &buf, const std::chrono::milliseconds &timeWait) const
 	{
 	#ifdef WIN32
-		fd_set writeset;
+		::fd_set writeset;
 		FD_ZERO(&writeset);
 		FD_SET(socket_handle, &writeset);
 
 		long seconds = timeWait.count() / 1000;
-		timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
 
-		if (0 < select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
+		if (0 < ::select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
 		{
 			if (FD_ISSET(socket_handle, &writeset) )
 			{
@@ -219,14 +312,14 @@ namespace HttpServer
 
 		return std::numeric_limits<size_t>::max();
 	#elif POSIX
-		fd_set writeset;
+		::fd_set writeset;
 		FD_ZERO(&writeset);
 		FD_SET(socket_handle, &writeset);
 
 		long seconds = timeWait.count() / 1000;
-		timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
 
-		if (0 < select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
+		if (0 < ::select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
 		{
 			if (FD_ISSET(socket_handle, &writeset) )
 			{
@@ -243,14 +336,14 @@ namespace HttpServer
 	size_t Socket::nonblock_send(const std::vector<std::string::value_type> &buf, const size_t length, const std::chrono::milliseconds &timeWait) const
 	{
 	#ifdef WIN32
-		fd_set writeset;
+		::fd_set writeset;
 		FD_ZERO(&writeset);
 		FD_SET(socket_handle, &writeset);
 
 		long seconds = timeWait.count() / 1000;
-		timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
 
-		if (0 < select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
+		if (0 < ::select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
 		{
 			if (FD_ISSET(socket_handle, &writeset) )
 			{
@@ -260,14 +353,14 @@ namespace HttpServer
 
 		return std::numeric_limits<size_t>::max();
 	#elif POSIX
-		fd_set writeset;
+		::fd_set writeset;
 		FD_ZERO(&writeset);
 		FD_SET(socket_handle, &writeset);
 
 		long seconds = timeWait.count() / 1000;
-		timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
+		::timeval timeout {seconds, (timeWait.count() - seconds * 1000) * 1000};
 
-		if (0 < select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
+		if (0 < ::select(socket_handle + 1, nullptr, &writeset, nullptr, &timeout) )
 		{
 			if (FD_ISSET(socket_handle, &writeset) )
 			{

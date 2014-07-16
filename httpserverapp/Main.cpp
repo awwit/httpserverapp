@@ -16,21 +16,30 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 	std::unordered_map<std::string, std::string> headers;
 	std::unordered_multimap<std::string, std::string> data;
 	std::unordered_multimap<std::string, HttpServer::FileIncoming> files;
+	std::unordered_multimap<std::string, std::string> cookies;
 
 	Utils::rawPairsToStlUnorderedMultimap(params, request->params, request->params_count);
 	Utils::rawPairsToStlUnorderedMap(headers, request->headers, request->headers_count);
 	Utils::rawPairsToStlUnorderedMultimap(data, request->data, request->data_count);
 	Utils::rawFilesInfoToFilesIncoming(files, request->files, request->files_count);
 
+	auto it_cookie = headers.find("Cookie");
+
+	if (headers.end() != it_cookie)
+	{
+		Utils::parseCookies(it_cookie->second, cookies);
+	}
+
 	HttpServer::ServerRequest proc_request {
 		HttpServer::Socket(request->socket),
 		std::string(request->method),
 		std::string(request->uri_reference),
 		std::string(request->document_root),
-		params,
-		headers,
-		data,
-		files
+		std::move(params),
+		std::move(headers),
+		std::move(data),
+		std::move(files),
+		std::move(cookies)
 	};
 
 	HttpServer::ServerResponse proc_response {
@@ -42,11 +51,17 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 
 	int result = EXIT_SUCCESS;
 
-	std::ifstream file(absolute_path);
+	std::ifstream file(absolute_path, std::ifstream::binary);
 
 	if (file)
 	{
-		proc_response.headers["Connection"] = "keep-alive";
+		auto it_connection = proc_request.headers.find("Connection");
+
+		if (proc_request.headers.cend() != it_connection)
+		{
+			proc_response.headers["Connection"] = it_connection->second;
+		}
+
 		proc_response.headers["X-Sendfile"] = absolute_path;
 	}
 	else
