@@ -32,9 +32,6 @@
   <ItemGroup>
     <None Include="Main.h" />
     <None Include="FileIncoming.h" />
-    <None Include="ResourceAbstract.h" />
-    <None Include="ResourceMethodAbstract.h" />
-    <None Include="ResourceMethodOptions.h" />
     <None Include="Socket.h" />
     <None Include="Utils.h" />
     <None Include="RawData.h" />
@@ -46,8 +43,6 @@
   <ItemGroup>
     <Compile Include="Main.cpp" />
     <Compile Include="FileIncoming.cpp" />
-    <Compile Include="ResourceAbstract.cpp" />
-    <Compile Include="ResourceMethodOptions.cpp" />
     <Compile Include="Socket.cpp" />
     <Compile Include="Utils.cpp" />
     <Compile Include="Test.cpp" />

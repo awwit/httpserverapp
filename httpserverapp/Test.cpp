@@ -13,27 +13,34 @@ bool test(HttpServer::ServerRequest &request, HttpServer::ServerResponse &respon
 
 	for (auto h = incoming_headers.cbegin(); h != incoming_headers.cend(); ++h)
 	{
-		s += h->first + ":" + h->second + "\n";
+		s += h->first + ": " + h->second + '\n';
 	}
 
-	s += "\n";
+	s += '\n';
 
 	for (auto v = incoming_data.cbegin(); v != incoming_data.cend(); ++v)
 	{
-		s += v->first + ": " + v->second + "\n";
+		s += v->first + ": " + v->second + '\n';
 	}
 
-/*		s = "\
-<table width=\"100%\">\
-<tr>\
-	<td>1<td>\
-	<td>2<td>\
-</tr>\
-<tr>\
-	<td>3<td>\
-	<td>4<td>\
-</tr>\
-</table>";*/
+	s += '\n';
+
+	for (auto &p : request.params)
+	{
+		s += p.first + ": " + p.second + '\n';
+	}
+
+		s = R"(
+<table width="100%">
+<tr>
+	<td>1<td>
+	<td>2<td>
+</tr>
+<tr>
+	<td>3<td>
+	<td>4<td>
+</tr>
+</table>)";
 
 	headers_outgoing[""] = "HTTP/1.1 200 OK";
 	headers_outgoing["Content-Type"] = "text/plain; charset=utf-8";

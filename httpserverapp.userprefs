@@ -1,21 +1,21 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workspace ActiveConfiguration="Release" />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
   <MonoDevelop.Ide.Workbench ActiveDocument="httpserverapp/Main.cpp">
     <Files>
       <File FileName="httpserverapp/Main.h" Line="1" Column="1" />
-      <File FileName="httpserverapp/Main.cpp" Line="26" Column="42" />
+      <File FileName="httpserverapp/Main.cpp" Line="2" Column="2" />
       <File FileName="httpserverapp/ServerRequest.h" Line="1" Column="1" />
       <File FileName="httpserverapp/ServerResponse.h" Line="1" Column="1" />
-      <File FileName="httpserverapp/Utils.h" Line="55" Column="2" />
+      <File FileName="httpserverapp/Utils.h" Line="1" Column="1" />
       <File FileName="httpserverapp/Test.h" Line="1" Column="1" />
-      <File FileName="httpserverapp/Test.cpp" Line="24" Column="3" />
+      <File FileName="httpserverapp/Test.cpp" Line="1" Column="1" />
       <File FileName="httpserverapp/Socket.h" Line="1" Column="1" />
-      <File FileName="httpserverapp/Utils.cpp" Line="272" Column="112" />
+      <File FileName="httpserverapp/Utils.cpp" Line="1" Column="1" />
       <File FileName="httpserverapp/Socket.cpp" Line="1" Column="1" />
       <File FileName="httpserverapp/System.h" Line="1" Column="1" />
       <File FileName="httpserverapp/RawData.h" Line="1" Column="1" />
       <File FileName="httpserverapp/System.cpp" Line="1" Column="1" />
-      <File FileName="httpserverapp/ResourceAbstract.cpp" Line="19" Column="3" />
+      <File FileName="httpserverapp/FileIncoming.cpp" Line="1" Column="1" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
