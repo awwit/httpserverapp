@@ -3,25 +3,25 @@
 
 namespace HttpServer
 {
-	int Socket::Startup()
+	bool Socket::Startup()
 	{
 	#ifdef WIN32
 		unsigned short version = MAKEWORD(2, 2);
 		::WSADATA wsaData = {0};
-		return ::WSAStartup(version, &wsaData);
+		return 0 == ::WSAStartup(version, &wsaData);
 	#elif POSIX
-		return 0;
+		return true;
 	#else
 		#error "Undefine platform"
 	#endif
 	}
 
-	int Socket::Cleanup()
+	bool Socket::Cleanup()
 	{
 	#ifdef WIN32
-		return ::WSACleanup();
+		return 0 == ::WSACleanup();
 	#elif POSIX
-		return 0;
+		return true;
 	#else
 		#error "Undefine platform"
 	#endif
@@ -32,7 +32,7 @@ namespace HttpServer
 		
 	}
 
-	Socket::Socket(const System::native_socket_type handle) : socket_handle(handle)
+	Socket::Socket(const System::native_socket_type fd) : socket_handle(fd)
 	{
 		
 	}
@@ -42,9 +42,9 @@ namespace HttpServer
 		
 	}
 
-	Socket::Socket(Socket &&that) : socket_handle(that.socket_handle)
+	Socket::Socket(Socket &&obj) : socket_handle(obj.socket_handle)
 	{
-		that.socket_handle = ~0;
+		obj.socket_handle = ~0;
 	}
 
 	System::native_socket_type Socket::open()
@@ -61,9 +61,9 @@ namespace HttpServer
 		if (is_open() )
 		{
 		#ifdef WIN32
-			int result = ::closesocket(socket_handle);
+			const int result = ::closesocket(socket_handle);
 		#elif POSIX
-			int result = ::close(socket_handle);
+			const int result = ::close(socket_handle);
 		#else
 			#error "Undefine platform"
 		#endif
@@ -81,12 +81,14 @@ namespace HttpServer
 
 	int Socket::bind(const int port) const
 	{
-		::sockaddr_in sock_addr = {0};
-		sock_addr.sin_family = AF_INET;
-		sock_addr.sin_port = htons(port);
-		sock_addr.sin_addr.s_addr = ::htonl(INADDR_ANY);
+		const ::sockaddr_in sock_addr = {
+            AF_INET,
+            htons(port),
+            ::htonl(INADDR_ANY),
+            0
+        };
 
-		return ::bind(socket_handle, reinterpret_cast<sockaddr *>(&sock_addr), sizeof(sockaddr_in) );
+		return ::bind(socket_handle, reinterpret_cast<const sockaddr *>(&sock_addr), sizeof(sockaddr_in) );
 	}
 
 	int Socket::listen() const
@@ -110,22 +112,24 @@ namespace HttpServer
 	{
 		System::native_socket_type client_socket = ~0;
 	#ifdef WIN32
-		WSAPOLLFD event = {0};
+        WSAPOLLFD event = {
+            socket_handle,
+            POLLRDNORM,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLRDNORM;
-
-		if (1 == ::WSAPoll(&event, 1, ~0) && event.revents | POLLRDNORM)
+        if (1 == ::WSAPoll(&event, 1, ~0) && event.revents & POLLRDNORM)
 		{
 			client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<int *>(nullptr) );
 		}
 	#elif POSIX
-		struct ::pollfd event = {0};
+        struct ::pollfd event = {
+            socket_handle,
+            POLLIN,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLIN;
-
-		if (1 == ::poll(&event, 1, ~0) && event.revents | POLLIN)
+        if (1 == ::poll(&event, 1, ~0) && event.revents & POLLIN)
 		{
 			client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<socklen_t *>(nullptr) );
 		}
@@ -135,26 +139,28 @@ namespace HttpServer
 		return Socket(client_socket);
 	}
 
-	Socket Socket::nonblock_accept(const std::chrono::milliseconds &timeWait) const
+	Socket Socket::nonblock_accept(const std::chrono::milliseconds &timeout) const
 	{
 		System::native_socket_type client_socket = ~0;
 	#ifdef WIN32
-		WSAPOLLFD event = {0};
+        WSAPOLLFD event = {
+            socket_handle,
+            POLLRDNORM,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLRDNORM;
-
-		if (1 == ::WSAPoll(&event, 1, timeWait.count() ) && event.revents | POLLRDNORM)
+		if (1 == ::WSAPoll(&event, 1, timeout.count() ) && event.revents & POLLRDNORM)
 		{
 			client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<int *>(nullptr) );
 		}
 	#elif POSIX
-		struct ::pollfd event = {0};
+        struct ::pollfd event = {
+            socket_handle,
+            POLLIN,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLIN;
-
-		if (1 == ::poll(&event, 1, timeWait.count() ) && event.revents | POLLIN)
+		if (1 == ::poll(&event, 1, timeout.count() ) && event.revents & POLLIN)
 		{
 			client_socket = ::accept(socket_handle, static_cast<sockaddr *>(nullptr), static_cast<socklen_t *>(nullptr) );
 		}
@@ -204,6 +210,19 @@ namespace HttpServer
 	#endif
 	}*/
 
+	bool Socket::tcp_nodelay(const bool nodelay) const
+	{
+	#ifdef WIN32
+		int flags = nodelay ? 1 : 0;
+		return 0 == setsockopt(socket_handle, IPPROTO_TCP, TCP_NODELAY, (char *)&flags, sizeof(flags) );
+	#elif POSIX
+		int flags = nodelay ? 1 : 0;
+		return 0 == setsockopt(socket_handle, IPPROTO_TCP, TCP_NODELAY, (char *)&flags, sizeof(flags) );
+	#else
+		#error "Undefine platform"
+	#endif
+	}
+
 	size_t Socket::recv(std::vector<std::string::value_type> &buf) const
 	{
 	#ifdef WIN32
@@ -215,26 +234,28 @@ namespace HttpServer
 	#endif
 	}
 
-	size_t Socket::nonblock_recv(std::vector<std::string::value_type> &buf, const std::chrono::milliseconds &timeWait) const
+	size_t Socket::nonblock_recv(std::vector<std::string::value_type> &buf, const std::chrono::milliseconds &timeout) const
 	{
 		size_t recv_len = ~0;
 	#ifdef WIN32
-		WSAPOLLFD event = {0};
+        WSAPOLLFD event = {
+            socket_handle,
+            POLLRDNORM,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLRDNORM;
-
-		if (1 == ::WSAPoll(&event, 1, timeWait.count() ) && event.revents | POLLRDNORM)
-		{
+		if (1 == ::WSAPoll(&event, 1, timeout.count() ) && event.revents & POLLRDNORM)
+        {
 			recv_len = ::recv(socket_handle, buf.data(), buf.size(), 0);
 		}
 	#elif POSIX
-		struct ::pollfd event = {0};
+        struct ::pollfd event = {
+            socket_handle,
+            POLLIN,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLIN;
-
-		if (1 == ::poll(&event, 1, timeWait.count() ) && event.revents | POLLIN)
+		if (1 == ::poll(&event, 1, timeout.count() ) && event.revents & POLLIN)
 		{
 			recv_len = ::recv(socket_handle, buf.data(), buf.size(), MSG_NOSIGNAL);
 		}
@@ -266,26 +287,28 @@ namespace HttpServer
 	#endif
 	}
 
-	size_t Socket::nonblock_send(const std::string &buf, const std::chrono::milliseconds &timeWait) const
+	size_t Socket::nonblock_send(const std::string &buf, const std::chrono::milliseconds &timeout) const
 	{
 		size_t send_len = ~0;
 	#ifdef WIN32
-		WSAPOLLFD event = {0};
+        WSAPOLLFD event = {
+            socket_handle,
+            POLLWRNORM,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLWRNORM;
-
-		if (1 == ::WSAPoll(&event, 1, timeWait.count() ) && event.revents | POLLWRNORM)
+		if (1 == ::WSAPoll(&event, 1, timeout.count() ) && event.revents & POLLWRNORM)
 		{
 			send_len = ::send(socket_handle, buf.data(), buf.length(), 0);
 		}
 	#elif POSIX
-		struct ::pollfd event = {0};
+        struct ::pollfd event = {
+            socket_handle,
+            POLLOUT,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLOUT;
-
-		if (1 == ::poll(&event, 1, timeWait.count() ) && event.revents | POLLOUT)
+		if (1 == ::poll(&event, 1, timeout.count() ) && event.revents & POLLOUT)
 		{
 			send_len = ::send(socket_handle, buf.data(), buf.length(), MSG_NOSIGNAL);
 		}
@@ -295,28 +318,30 @@ namespace HttpServer
 		return send_len;
 	}
 
-	size_t Socket::nonblock_send(const std::vector<std::string::value_type> &buf, const size_t length, const std::chrono::milliseconds &timeWait) const
+	size_t Socket::nonblock_send(const std::vector<std::string::value_type> &buf, const size_t length, const std::chrono::milliseconds &timeout) const
 	{
 		size_t send_len = ~0;
 	#ifdef WIN32
-		WSAPOLLFD event = {0};
+        WSAPOLLFD event = {
+            socket_handle,
+            POLLWRNORM,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLWRNORM;
-
-		if (1 == ::WSAPoll(&event, 1, timeWait.count() ) && event.revents | POLLWRNORM)
+		if (1 == ::WSAPoll(&event, 1, timeout.count() ) && event.revents & POLLWRNORM)
 		{
 			send_len = ::send(socket_handle, buf.data(), length, 0);
 		}
 	#elif POSIX
-		struct ::pollfd event = {0};
+        struct ::pollfd event = {
+            socket_handle,
+            POLLOUT,
+            0
+        };
 
-		event.fd = socket_handle;
-		event.events = POLLOUT;
-
-		if (1 == ::poll(&event, 1, timeWait.count() ) && event.revents | POLLOUT)
+		if (1 == ::poll(&event, 1, timeout.count() ) && event.revents & POLLOUT)
 		{
-			send_len = ::send(socket_handle, buf.data(), length, MSG_WAITALL | MSG_NOSIGNAL);
+			send_len = ::send(socket_handle, buf.data(), length, MSG_NOSIGNAL);
 		}
 	#else
 		#error "Undefine platform"
@@ -324,9 +349,42 @@ namespace HttpServer
 		return send_len;
 	}
 
-	Socket &Socket::operator=(const Socket s)
+	void Socket::nonblock_send_sync() const
 	{
-		socket_handle = s.socket_handle;
+	#ifdef WIN32
+		WSAPOLLFD event = {
+			socket_handle,
+			POLLWRNORM,
+			0
+		};
+
+		::WSAPoll(&event, 1, ~0);
+	#elif POSIX
+		struct ::pollfd event = {
+			socket_handle,
+			POLLOUT,
+			0
+		};
+
+		::poll(&event, 1, ~0);
+	#else
+		#error "Undefine platform"
+	#endif
+	}
+
+	Socket &Socket::operator=(const Socket &obj)
+	{
+		socket_handle = obj.socket_handle;
 		return *this;
+	}
+
+	bool Socket::operator ==(const Socket &obj) const
+	{
+		return this->socket_handle == obj.socket_handle;
+	}
+
+	bool Socket::operator !=(const Socket &obj) const
+	{
+		return this->socket_handle != obj.socket_handle;
 	}
 };

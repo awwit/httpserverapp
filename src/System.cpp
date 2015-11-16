@@ -1,6 +1,12 @@
 ﻿
 #include "System.h"
 
+#include <array>
+
+#ifdef WIN32
+	char myWndClassName[] = "WndClassNameConstant";
+#endif
+
 namespace System
 {
 #ifdef WIN32
@@ -10,7 +16,7 @@ namespace System
 		::HWND hWnd;
 	};
 
-	BOOL WINAPI EnumProc(::HWND hWnd, ::LPARAM lParam)
+    ::BOOL WINAPI EnumProc(::HWND hWnd, ::LPARAM lParam)
 	{
 		EnumData &ed = *reinterpret_cast<EnumData *>(lParam);
 
@@ -18,11 +24,18 @@ namespace System
 
 		::GetWindowThreadProcessId(hWnd, &process_id);
 
-		if (process_id == ed.process_id && GetConsoleWindow() != hWnd)
+        if (process_id == ed.process_id && ::GetConsoleWindow() != hWnd)
 		{
-			ed.hWnd = hWnd;
+			std::array<char, 65> class_name;
 
-			return false;
+			::GetClassName(hWnd, class_name.data(), class_name.size() - 1);
+
+			if (0 == ::strcmp(class_name.data(), myWndClassName) )
+			{
+				ed.hWnd = hWnd;
+
+				return false;
+			}
 		}
 
 		return true;
@@ -34,7 +47,7 @@ namespace System
 	#ifdef WIN32
 		EnumData ed = {pid, 0};
 
-		::EnumWindows(EnumProc, reinterpret_cast<LPARAM>(&ed) );
+		::EnumWindows(EnumProc, reinterpret_cast<::LPARAM>(&ed) );
 
 		if (0 == ed.hWnd)
 		{
@@ -44,6 +57,60 @@ namespace System
 		return 0 != ::PostMessage(ed.hWnd, signal, 0, 0);
 	#elif POSIX
 		return 0 == ::kill(pid, signal);
+	#else
+		#error "Undefine platform"
+	#endif
+	}
+
+	std::string getTempDir()
+	{
+	#ifdef WIN32
+		std::array<std::string::value_type, MAX_PATH + 1> buf;
+
+		const size_t len = ::GetTempPath(buf.size(), buf.data() );
+
+		return std::string(buf.cbegin(), buf.cbegin() + len);
+	#elif POSIX
+        const char *buf = ::getenv("TMPDIR");
+
+		if (nullptr == buf)
+		{
+			return std::string("/tmp/");
+		}
+
+		std::string str(buf);
+
+		if ('/' != str.back() )
+		{
+			str.push_back('/');
+		}
+
+		return str;
+	#else
+		#error "Undefine platform"
+	#endif
+	}
+
+	bool isFileExists(const std::string &fileName)
+	{
+	#ifdef WIN32
+		const ::DWORD attrib = ::GetFileAttributes(fileName.c_str() );
+
+		if (INVALID_FILE_ATTRIBUTES == attrib)
+		{
+			return false;
+		}
+
+		return FILE_ATTRIBUTE_DIRECTORY != (attrib & FILE_ATTRIBUTE_DIRECTORY);
+	#elif POSIX
+		struct ::stat attrib;
+
+		if (-1 == ::stat(fileName.c_str(), &attrib) )
+		{
+			return false;
+		}
+
+		return S_ISREG(attrib.st_mode);
 	#else
 		#error "Undefine platform"
 	#endif
@@ -61,6 +128,7 @@ namespace System
 
 		if (false == ::GetFileSizeEx(hFile, reinterpret_cast<::PLARGE_INTEGER>(fileSize) ) )
 		{
+			::CloseHandle(hFile);
 			return false;
 		}
 
@@ -88,7 +156,7 @@ namespace System
 			stUtc.wYear - 1900,
 			0,
 			0,
-			0
+            -1
 		};
 
 		*fileTime = ::mktime(&tm_time);

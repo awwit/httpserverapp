@@ -3,8 +3,6 @@
 
 #include "Test.h"
 
-#include <fstream>
-
 DLLEXPORT bool application_init()
 {
 	return true;
@@ -18,14 +16,14 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 	std::unordered_multimap<std::string, HttpServer::FileIncoming> files;
 	std::unordered_multimap<std::string, std::string> cookies;
 
-	Utils::rawPairsToStlUnorderedMultimap(params, request->params, request->params_count);
-	Utils::rawPairsToStlUnorderedMap(headers, request->headers, request->headers_count);
-	Utils::rawPairsToStlUnorderedMultimap(data, request->data, request->data_count);
+	Utils::rawPairsToStl(params, request->params, request->params_count);
+	Utils::rawPairsToStl(headers, request->headers, request->headers_count);
+	Utils::rawPairsToStl(data, request->data, request->data_count);
 	Utils::rawFilesInfoToFilesIncoming(files, request->files, request->files_count);
 
 	auto it_cookie = headers.find("Cookie");
 
-	if (headers.end() != it_cookie)
+	if (headers.cend() != it_cookie)
 	{
 		Utils::parseCookies(it_cookie->second, cookies);
 	}
@@ -47,13 +45,11 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 		std::map<std::string, std::string>()
 	};
 
-	std::string absolute_path = proc_request.document_root + proc_request.uri_reference;
+	const std::string absolute_path = proc_request.document_root + proc_request.uri_reference;
 
 	int result = EXIT_SUCCESS;
 
-	std::ifstream file(absolute_path, std::ifstream::binary);
-
-	if (file)
+	if (System::isFileExists(absolute_path) )
 	{
 		auto it_connection = proc_request.headers.find("Connection");
 
@@ -69,12 +65,10 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 		result = test(proc_request, proc_response);
 	}
 
-	file.close();
-
 	if (proc_response.headers.size() )
 	{
 		Utils::raw_pair *headers;
-		Utils::stlMapToRawPairs(&headers, proc_response.headers);
+		Utils::stlToRawPairs(&headers, proc_response.headers);
 
 		response->headers_count = proc_response.headers.size();
 		response->headers = headers;

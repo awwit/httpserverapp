@@ -2,6 +2,25 @@
 
 #ifdef WIN32
 	#include <Windows.h>
+	char myWndClassName[];
+
+    #ifdef SIGTERM
+        #undef SIGTERM
+        #define SIGTERM (WM_USER + 15)
+    #endif
+
+    #ifdef SIGINT
+        #undef SIGINT
+        #define SIGINT (WM_USER + 2)
+    #endif
+
+    #ifndef SIGUSR1
+        #define SIGUSR1 (WM_USER + 10)
+    #endif
+
+    #ifndef SIGUSR2
+        #define SIGUSR2 (WM_USER + 12)
+    #endif
 #elif POSIX
 	#include <csignal>
 	#include <sys/sysinfo.h>
@@ -11,10 +30,7 @@
 	#error "Undefine platform"
 #endif
 
-#ifndef SIGUSR1
-	#define SIGUSR1 10
-#endif
-
+#include <vector>
 #include <string>
 #include <ctime>
 #include <thread>
@@ -36,19 +52,6 @@ namespace System
 #else
 	#error "Undefine platform"
 #endif
-
-	inline size_t getProcessorsCount()
-	{
-	#ifdef WIN32
-		::SYSTEM_INFO si = {0};
-		::GetSystemInfo(&si);
-		return si.dwNumberOfProcessors;
-	#elif POSIX
-		return ::get_nprocs();
-	#else
-		#error "Undefine platform"
-	#endif
-	}
 
 	inline native_processid_type getProcessId()
 	{
@@ -74,16 +77,9 @@ namespace System
 	#endif
 	}
 
-	inline std::string getTempDir()
-	{
-	#ifdef WIN32
-		return std::string("C:/Temp/"); // FIXME: Windows temp dir
-	#elif POSIX
-		return std::string("/tmp/");
-	#else
-		#error "Undefine platform"
-	#endif
-	}
+	std::string getTempDir();
 
-	bool getFileSizeAndTimeGmt(const std::string &, size_t *, time_t *);
+	bool isFileExists(const std::string &fileName);
+
+	bool getFileSizeAndTimeGmt(const std::string &filePath, size_t *fileSize, time_t *fileTime);
 };

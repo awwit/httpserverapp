@@ -1,6 +1,7 @@
 ﻿
 #include "Utils.h"
 
+#include <array>
 #include <cstring>
 #include <iomanip>
 
@@ -8,7 +9,7 @@ namespace Utils
 {
 	void trim(std::string &str)
 	{
-		size_t last = str.find_last_not_of(" \t\n\v\f\r");
+		const size_t last = str.find_last_not_of(" \t\n\v\f\r");
 
 		if (std::string::npos == last)
 		{
@@ -18,9 +19,33 @@ namespace Utils
 		str.assign(str.cbegin() + str.find_first_not_of(" \t\n\v\f\r"), str.cbegin() + last + 1);
 	}
 
+	std::vector<std::string> explode(const std::string &str, const char sep)
+	{
+		std::vector<std::string> values;
+
+		for (size_t pos = 0; std::string::npos != pos;)
+		{
+			size_t delimiter = str.find(sep, pos);
+
+			std::string value = str.substr(pos, delimiter);
+			trim(value);
+
+			values.emplace_back(std::move(value) );
+
+			pos = delimiter;
+
+			if (std::string::npos != pos)
+			{
+				++pos;
+			}
+		}
+
+		return values;
+	}
+
 	char *stlStringToPChar(const std::string &str)
 	{
-		size_t length = str.length();
+		const size_t length = str.length();
 		char *s = nullptr;
 
 		if (length)
@@ -37,60 +62,6 @@ namespace Utils
 		}
 
 		return s;
-	}
-
-	void stlMapToRawPairs(Utils::raw_pair *raw[], const std::map<std::string, std::string> &map)
-	{
-		if (raw && map.size() )
-		{
-			raw_pair *arr = new raw_pair[map.size()];
-
-			*raw = arr;
-
-			size_t i = 0;
-
-			for (auto it = map.cbegin(); map.cend() != it; ++it, ++i)
-			{
-				arr[i].key = stlStringToPChar(it->first);
-				arr[i].value = stlStringToPChar(it->second);
-			}
-		}
-	}
-
-	void stlUnorderedMapToRawPairs(Utils::raw_pair *raw[], const std::unordered_map<std::string, std::string> &map)
-	{
-		if (raw && map.size() )
-		{
-			raw_pair *arr = new raw_pair[map.size()];
-
-			*raw = arr;
-
-			size_t i = 0;
-
-			for (auto it = map.cbegin(); map.cend() != it; ++it, ++i)
-			{
-				arr[i].key = stlStringToPChar(it->first);
-				arr[i].value = stlStringToPChar(it->second);
-			}
-		}
-	}
-
-	void stlUnorderedMultimapToRawPairs(Utils::raw_pair *raw[], const std::unordered_multimap<std::string, std::string> &map)
-	{
-		if (raw && map.size() )
-		{
-			raw_pair *arr = new raw_pair[map.size()];
-
-			*raw = arr;
-
-			size_t i = 0;
-
-			for (auto it = map.cbegin(); map.cend() != it; ++it, ++i)
-			{
-				arr[i].key = stlStringToPChar(it->first);
-				arr[i].value = stlStringToPChar(it->second);
-			}
-		}
 	}
 
 	void filesIncomingToRawFilesInfo(Utils::raw_fileinfo *raw[], const std::unordered_multimap<std::string, HttpServer::FileIncoming> &map)
@@ -113,30 +84,6 @@ namespace Utils
 				arr[i].file_type = stlStringToPChar(file.getType() );
 				arr[i].file_size = file.getSize();
 			}
-		}
-	}
-
-	void rawPairsToStlMap(std::map<std::string, std::string> &map, const Utils::raw_pair raw[], const size_t count)
-	{
-		for (size_t i = 0; i < count; ++i)
-		{
-			map.emplace(raw[i].key ? raw[i].key : "", raw[i].value ? raw[i].value : "");
-		}
-	}
-
-	void rawPairsToStlUnorderedMap(std::unordered_map<std::string, std::string> &map, const Utils::raw_pair raw[], const size_t count)
-	{
-		for (size_t i = 0; i < count; ++i)
-		{
-			map.emplace(raw[i].key ? raw[i].key : "", raw[i].value ? raw[i].value : "");
-		}
-	}
-
-	void rawPairsToStlUnorderedMultimap(std::unordered_multimap<std::string, std::string> &map, const Utils::raw_pair raw[], const size_t count)
-	{
-		for (size_t i = 0; i < count; ++i)
-		{
-			map.emplace(raw[i].key ? raw[i].key : "", raw[i].value ? raw[i].value : "");
 		}
 	}
 
@@ -191,37 +138,41 @@ namespace Utils
 			{"Jan", 0}, {"Feb", 1}, {"Mar", 2}, {"Apr", 3}, {"May", 4}, {"Jun", 5}, {"Jul", 6}, {"Aug", 7}, {"Sep", 8}, {"Oct", 9}, {"Nov", 10}, {"Dec", 11}
 		};
 
-		const size_t str_mon_length = 32;
-		char *s_mon = new char[str_mon_length];
-		::memset(s_mon, 0, str_mon_length);
+		if (strTime.length() > 64)
+		{
+			return (time_t) ~0;
+		}
 
-		struct ::tm tc = {0};
+		const size_t str_mon_length = 64;
+		std::vector<char> s_mon(str_mon_length);
+
+        struct ::tm tc = {0};
 
 		// Parse RFC 822
 	#ifdef WIN32
-		if (std::numeric_limits<int>::max() != ::sscanf_s(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, str_mon_length, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
+		if (~0 != ::sscanf_s(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon.data(), s_mon.size(), &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
 	#else
-		if (std::numeric_limits<int>::max() != ::sscanf(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon, &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
+		if (~0 != ::sscanf(strTime.c_str(), "%*s %d %3s %d %d:%d:%d", &tc.tm_mday, s_mon.data(), &tc.tm_year, &tc.tm_hour, &tc.tm_min, &tc.tm_sec) )
 	#endif
 		{
 			tc.tm_year -= 1900;
 
-			auto it_mon = map_months.find(s_mon);
+			auto it_mon = map_months.find(s_mon.data() );
 
-			if (map_months.end() != it_mon)
+            if (map_months.cend() != it_mon)
 			{
 				tc.tm_mon = it_mon->second;
 			}
 		}
 
-		delete[] s_mon;
+        tc.tm_isdst = -1;
 
 		return ::mktime(&tc);
 	}
 
-	std::string getDatetimeStringValue(const ::time_t tTime, const bool isGmtTime)
+	std::string getDatetimeAsString(const ::time_t tTime, const bool isGmtTime)
 	{
-		char buf[64];
+		std::array<char, 64> buf;
 
 		::time_t cur_time = tTime;
 
@@ -243,15 +194,15 @@ namespace Utils
 		}
 
 		// RFC 822
-		::strftime(buf, 64, "%a, %d %b %Y %H:%M:%S GMT", &stm);
+		::strftime(buf.data(), buf.size(), "%a, %d %b %Y %H:%M:%S GMT", &stm);
 	#else
 		struct ::tm *ptm = isGmtTime ? localtime(&cur_time) : gmtime(&cur_time);
 
 		// RFC 822
-		::strftime(buf, 64, "%a, %d %b %G %H:%M:%S GMT", ptm);
+		::strftime(buf.data(), buf.size(), "%a, %d %b %G %H:%M:%S GMT", ptm);
 	#endif
 
-		return std::string(buf);
+		return std::string(buf.data() );
 	}
 
 	size_t getNumberLength(const size_t number)
