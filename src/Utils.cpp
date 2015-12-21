@@ -2,8 +2,12 @@
 #include "Utils.h"
 
 #include <array>
+#include <chrono>
 #include <cstring>
+#include <sstream>
 #include <iomanip>
+#include <cstdint>
+#include <cctype>
 
 namespace Utils
 {
@@ -266,7 +270,8 @@ namespace Utils
 		const size_t str_mon_length = 64;
 		std::vector<char> s_mon(str_mon_length);
 
-		struct ::tm tc = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		struct ::tm tc;
+		memset(&tc, 0, sizeof(tc) );
 
 		// Parse RFC 822
 	#ifdef WIN32
