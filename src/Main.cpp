@@ -28,8 +28,22 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 		Utils::parseCookies(it_cookie->second, cookies);
 	}
 
+	// Create socket adapter
+	uint8_t addr[sizeof(HttpServer::SocketAdapterTls)];
+
+	HttpServer::SocketAdapter *socket_adapter;
+
+	if (request->tls_session)
+	{
+		socket_adapter = new (addr) HttpServer::SocketAdapterTls(request->tls_session);
+	}
+	else
+	{
+		socket_adapter = new (addr) HttpServer::SocketAdapterDefault(request->socket);
+	}
+
 	HttpServer::ServerRequest proc_request {
-		HttpServer::Socket(request->socket),
+		*socket_adapter,
 		std::string(request->method),
 		std::string(request->uri_reference),
 		std::string(request->document_root),
@@ -41,7 +55,7 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 	};
 
 	HttpServer::ServerResponse proc_response {
-		HttpServer::Socket(request->socket),
+		*socket_adapter,
 		std::map<std::string, std::string>()
 	};
 
@@ -49,7 +63,7 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 
 	int result = EXIT_SUCCESS;
 
-	if (System::isFileExists(absolute_path) )
+	if (std::string::npos == absolute_path.find("/../") && System::isFileExists(absolute_path) )
 	{
 		auto it_connection = proc_request.headers.find("Connection");
 
@@ -64,6 +78,8 @@ DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::
 	{
 		result = test(proc_request, proc_response);
 	}
+
+	socket_adapter->~SocketAdapter();
 
 	if (proc_response.headers.size() )
 	{

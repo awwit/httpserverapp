@@ -88,7 +88,7 @@ bool test(HttpServer::ServerRequest &request, HttpServer::ServerResponse &respon
 	s += R"(	</tbody>
 </table>)";
 
-	HttpServer::Socket &socket = response.socket;
+	HttpServer::SocketAdapter &socket = response.socket;
 	std::map<std::string, std::string> &headers_outgoing = response.headers;
 
 	// Set outgoing headers
@@ -116,7 +116,7 @@ bool test(HttpServer::ServerRequest &request, HttpServer::ServerResponse &respon
 
 	// Send headers and page
 
-	std::chrono::milliseconds timeout(5000);
+	const std::chrono::milliseconds timeout(5000);
 
 	socket.nonblock_send(headers, timeout);
 	socket.nonblock_send(s, timeout);
