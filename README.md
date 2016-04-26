@@ -10,10 +10,9 @@ Common:
 
 * [gnutls](https://www.gnutls.org/)
 
-Linux:
+Linux: `dl`, `pthread`, `gnutls`
 
-* dl
-* pthread
+Windows: `ws2_32.lib`, `libgnutls.dll.a`
 
 Build
 -----
@@ -26,6 +25,16 @@ cd httpserverapp
 mkdir build
 cd build
 qbs build -f ./../projects/qt-creator/httpserverapp.qbs release
+```
+
+Windows:
+
+```sh
+git clone https://github.com/awwit/httpserverapp.git
+cd httpserver
+mkdir build
+cd build
+devenv ./../projects/msvs/httpserverapp.sln /build
 ```
 
 License
