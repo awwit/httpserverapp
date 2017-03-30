@@ -1,10 +1,8 @@
-httpserverapp
-=============
+# httpserverapp
 
 Sample application for [C++ http server](https://github.com/awwit/httpserver).
 
-Dependencies
-------------
+## Dependencies
 
 Common:
 
@@ -14,8 +12,7 @@ Linux: `dl`, `pthread`, `gnutls`
 
 Windows: `ws2_32.lib`, `libgnutls.dll.a`
 
-Build
------
+## Build
 
 Linux:
 
@@ -37,8 +34,7 @@ cd build
 devenv ./../projects/msvs/httpserverapp.sln /build
 ```
 
-License
-=======
+# License
 
 The source codes are licensed under the
 [MIT](https://opensource.org/licenses/MIT),

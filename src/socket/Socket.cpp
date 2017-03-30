@@ -1,9 +1,19 @@
 
 #include "Socket.h"
 
-namespace HttpServer
+#ifdef POSIX
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <poll.h>
+	#include <netinet/in.h>
+	#include <netinet/tcp.h>
+	#include <unistd.h>
+	#include <fcntl.h>
+#endif
+
+namespace Socket
 {
-	bool Socket::Startup()
+	bool Socket::Startup() noexcept
 	{
 	#ifdef WIN32
 		unsigned short version = MAKEWORD(2, 2);
@@ -16,7 +26,7 @@ namespace HttpServer
 	#endif
 	}
 
-	bool Socket::Cleanup()
+	bool Socket::Cleanup() noexcept
 	{
 	#ifdef WIN32
 		return 0 == ::WSACleanup();
@@ -27,7 +37,7 @@ namespace HttpServer
 	#endif
 	}
 
-	int Socket::getLastError()
+	int Socket::getLastError() noexcept
 	{
 	#ifdef WIN32
 		return ::WSAGetLastError();
@@ -38,27 +48,27 @@ namespace HttpServer
 	#endif
 	}
 
-	Socket::Socket(): socket_handle(~0)
+	Socket::Socket() noexcept : socket_handle(~0)
 	{
 		
 	}
 
-	Socket::Socket(const System::native_socket_type fd) : socket_handle(fd)
+	Socket::Socket(const System::native_socket_type fd) noexcept : socket_handle(fd)
 	{
 		
 	}
 
-	Socket::Socket(const Socket &obj) : socket_handle(obj.socket_handle)
+	Socket::Socket(const Socket &obj) noexcept : socket_handle(obj.socket_handle)
 	{
 		
 	}
 
-	Socket::Socket(Socket &&obj) : socket_handle(obj.socket_handle)
+	Socket::Socket(Socket &&obj) noexcept : socket_handle(obj.socket_handle)
 	{
 		obj.socket_handle = ~0;
 	}
 
-	bool Socket::open()
+	bool Socket::open() noexcept
 	{
 		this->close();
 
@@ -67,7 +77,7 @@ namespace HttpServer
 		return this->is_open();
 	}
 
-	bool Socket::close()
+	bool Socket::close() noexcept
 	{
 		if (this->is_open() )
 		{
@@ -90,7 +100,23 @@ namespace HttpServer
 		return false;
 	}
 
-	bool Socket::bind(const int port) const
+	bool Socket::is_open() const noexcept
+	{
+	#ifdef WIN32
+		return INVALID_SOCKET != this->socket_handle;
+	#elif POSIX
+		return ~0 != this->socket_handle;
+	#else
+		#error "Undefine platform"
+	#endif
+	}
+
+	System::native_socket_type Socket::get_handle() const noexcept
+	{
+		return this->socket_handle;
+	}
+
+	bool Socket::bind(const int port) const noexcept
 	{
 		const ::sockaddr_in sock_addr = {
             AF_INET,
@@ -102,12 +128,12 @@ namespace HttpServer
 		return 0 == ::bind(this->socket_handle, reinterpret_cast<const sockaddr *>(&sock_addr), sizeof(sockaddr_in) );
 	}
 
-	bool Socket::listen() const
+	bool Socket::listen() const noexcept
 	{
 		return 0 == ::listen(this->socket_handle, SOMAXCONN);
 	}
 
-	Socket Socket::accept() const
+	Socket Socket::accept() const noexcept
 	{
 	#ifdef WIN32
 		System::native_socket_type client_socket = ::accept(this->socket_handle, static_cast<sockaddr *>(nullptr), static_cast<int *>(nullptr) );
@@ -119,7 +145,7 @@ namespace HttpServer
 		return Socket(client_socket);
 	}
 
-	Socket Socket::nonblock_accept() const
+	Socket Socket::nonblock_accept() const noexcept
 	{
 		System::native_socket_type client_socket = ~0;
 	#ifdef WIN32
@@ -150,7 +176,7 @@ namespace HttpServer
 		return Socket(client_socket);
 	}
 
-	Socket Socket::nonblock_accept(const std::chrono::milliseconds &timeout) const
+	Socket Socket::nonblock_accept(const std::chrono::milliseconds &timeout) const noexcept
 	{
 		System::native_socket_type client_socket = ~0;
 	#ifdef WIN32
@@ -160,7 +186,7 @@ namespace HttpServer
             0
         };
 
-		if (1 == ::WSAPoll(&event, 1, timeout.count() ) && event.revents & POLLRDNORM)
+		if (1 == ::WSAPoll(&event, 1, static_cast<::INT>(timeout.count() ) ) && event.revents & POLLRDNORM)
 		{
 			client_socket = ::accept(this->socket_handle, static_cast<sockaddr *>(nullptr), static_cast<int *>(nullptr) );
 		}
@@ -181,7 +207,7 @@ namespace HttpServer
 		return Socket(client_socket);
 	}
 
-	bool Socket::shutdown() const
+	bool Socket::shutdown() const noexcept
 	{
 		if (is_open() )
 		{
@@ -197,7 +223,7 @@ namespace HttpServer
 		return false;
 	}
 
-	bool Socket::nonblock(const bool isNonBlock) const
+	bool Socket::nonblock(const bool isNonBlock) const noexcept
 	{
 	#ifdef WIN32
 		unsigned long value = isNonBlock;
@@ -210,7 +236,7 @@ namespace HttpServer
 	}
 
 /*
-	bool Socket::is_nonblock() const
+	bool Socket::is_nonblock() const noexcept
 	{
 	#ifdef WIN32
 		
@@ -223,7 +249,7 @@ namespace HttpServer
 	}
 */
 
-	bool Socket::tcp_nodelay(const bool nodelay) const
+	bool Socket::tcp_nodelay(const bool nodelay) const noexcept
 	{
 	#ifdef WIN32
 		int flags = nodelay ? 1 : 0;
@@ -236,41 +262,51 @@ namespace HttpServer
 	#endif
 	}
 
-	long Socket::recv(std::vector<std::string::value_type> &buf) const
+	long Socket::recv(std::vector<std::string::value_type> &buf) const noexcept
+	{
+		return this->recv(buf.data(), buf.size() );
+	}
+
+	long Socket::recv(void *buf, const size_t length) const noexcept
 	{
 	#ifdef WIN32
-		return ::recv(this->socket_handle, buf.data(), buf.size(), 0);
+		return ::recv(this->socket_handle, buf, static_cast<const int>(length), 0);
 	#elif POSIX
-		return ::recv(this->socket_handle, buf.data(), buf.size(), 0);
+		return ::recv(this->socket_handle, buf, length, 0);
 	#else
 		#error "Undefine platform"
 	#endif
 	}
 
-	long Socket::nonblock_recv(std::vector<std::string::value_type> &buf, const std::chrono::milliseconds &timeout) const
+	long Socket::nonblock_recv(std::vector<std::string::value_type> &buf, const std::chrono::milliseconds &timeout) const noexcept
+	{
+		return this->nonblock_recv(buf.data(), buf.size(), timeout);
+	}
+
+	long Socket::nonblock_recv(void *buf, const size_t length, const std::chrono::milliseconds &timeout) const noexcept
 	{
 		long recv_len = ~0;
 	#ifdef WIN32
-        WSAPOLLFD event = {
+		WSAPOLLFD event = {
 			this->socket_handle,
-            POLLRDNORM,
-            0
-        };
+			POLLRDNORM,
+			0
+		};
 
-		if (1 == ::WSAPoll(&event, 1, timeout.count() ) && event.revents & POLLRDNORM)
-        {
-			recv_len = ::recv(this->socket_handle, buf.data(), buf.size(), 0);
+		if (1 == ::WSAPoll(&event, 1, static_cast<::INT>(timeout.count() ) ) && event.revents & POLLRDNORM)
+		{
+			recv_len = this->recv(this->socket_handle, buf, static_cast<const int>(length), 0);
 		}
 	#elif POSIX
-        struct ::pollfd event = {
+		struct ::pollfd event = {
 			this->socket_handle,
-            POLLIN,
-            0
-        };
+			POLLIN,
+			0
+		};
 
 		if (1 == ::poll(&event, 1, timeout.count() ) && event.revents & POLLIN)
 		{
-			recv_len = ::recv(this->socket_handle, buf.data(), buf.size(), 0);
+			recv_len = ::recv(this->socket_handle, buf, length, 0);
 		}
 	#else
 		#error "Undefine platform"
@@ -278,7 +314,7 @@ namespace HttpServer
 		return recv_len;
 	}
 
-	static long send_all(const System::native_socket_type socket_handle, const void *data, const size_t length)
+	static long send_all(const System::native_socket_type socket_handle, const void *data, const size_t length) noexcept
 	{
 		size_t total = 0;
 
@@ -294,20 +330,20 @@ namespace HttpServer
 			total += send_size;
 		}
 
-		return total;
+		return static_cast<long>(total);
 	}
 
-	long Socket::send(const std::string &buf) const
+	long Socket::send(const std::string &buf) const noexcept
 	{
-		return send_all(this->socket_handle, buf.data(), buf.length() );
+		return this->send(buf.data(), buf.length() );
 	}
 
-	long Socket::send(const std::vector<std::string::value_type> &buf, const size_t length) const
+	long Socket::send(const void *buf, const size_t length) const noexcept
 	{
-		return send_all(this->socket_handle, buf.data(), length);
+		return send_all(this->socket_handle, buf, length);
 	}
 
-	static long nonblock_send_all(const System::native_socket_type socket_handle, const void *data, const size_t length, const std::chrono::milliseconds &timeout)
+	static long nonblock_send_all(const System::native_socket_type socket_handle, const void *data, const size_t length, const std::chrono::milliseconds &timeout) noexcept
 	{
 		size_t total = 0;
 
@@ -320,9 +356,9 @@ namespace HttpServer
 
 		while (total < length)
 		{
-			if (1 == ::WSAPoll(&event, 1, timeout.count() ) && event.revents & POLLWRNORM)
+			if (1 == ::WSAPoll(&event, 1, static_cast<::INT>(timeout.count() ) ) && event.revents & POLLWRNORM)
 			{
-				const long send_size = ::send(socket_handle, reinterpret_cast<const char *>(data) + total, length - total, 0);
+				const long send_size = ::send(socket_handle, reinterpret_cast<const char *>(data) + total, static_cast<const int>(length - total), 0);
 
 				if (send_size < 0)
 				{
@@ -366,20 +402,20 @@ namespace HttpServer
 		#error "Undefine platform"
 	#endif
 
-		return total;
+		return static_cast<long>(total);
 	}
 
-	long Socket::nonblock_send(const std::string &buf, const std::chrono::milliseconds &timeout) const
+	long Socket::nonblock_send(const std::string &buf, const std::chrono::milliseconds &timeout) const noexcept
 	{
-		return nonblock_send_all(this->socket_handle, buf.data(), buf.length(), timeout);
+		return this->nonblock_send(buf.data(), buf.length(), timeout);
 	}
 
-	long Socket::nonblock_send(const std::vector<std::string::value_type> &buf, const size_t length, const std::chrono::milliseconds &timeout) const
+	long Socket::nonblock_send(const void *buf, const size_t length, const std::chrono::milliseconds &timeout) const noexcept
 	{
-		return nonblock_send_all(this->socket_handle, buf.data(), length, timeout);
+		return nonblock_send_all(this->socket_handle, buf, length, timeout);
 	}
 
-	void Socket::nonblock_send_sync() const
+	void Socket::nonblock_send_sync() const noexcept
 	{
 	#ifdef WIN32
 		WSAPOLLFD event = {
@@ -402,18 +438,18 @@ namespace HttpServer
 	#endif
 	}
 
-	Socket &Socket::operator=(const Socket &obj)
+	Socket &Socket::operator=(const Socket &obj) noexcept
 	{
 		this->socket_handle = obj.socket_handle;
 		return *this;
 	}
 
-	bool Socket::operator ==(const Socket &obj) const
+	bool Socket::operator ==(const Socket &obj) const noexcept
 	{
 		return this->socket_handle == obj.socket_handle;
 	}
 
-	bool Socket::operator !=(const Socket &obj) const
+	bool Socket::operator !=(const Socket &obj) const noexcept
 	{
 		return this->socket_handle != obj.socket_handle;
 	}

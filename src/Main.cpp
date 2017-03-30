@@ -1,103 +1,76 @@
 ﻿
 #include "Main.h"
+#include "Init.h"
 
-#include "Test.h"
+#include "application/Test.h"
+
+#include "utils/Utils.h"
 
 DLLEXPORT bool application_init()
 {
 	return true;
 }
 
-DLLEXPORT int application_call(HttpServer::server_request *request, HttpServer::server_response *response)
+DLLEXPORT int application_call(Transfer::app_request *request, Transfer::app_response *response)
 {
-	std::unordered_multimap<std::string, std::string> params;
-	std::unordered_map<std::string, std::string> headers;
-	std::unordered_multimap<std::string, std::string> data;
-	std::unordered_multimap<std::string, HttpServer::FileIncoming> files;
-	std::unordered_multimap<std::string, std::string> cookies;
+	// Allocate memory on the stack
+	uint8_t addr[sizeof(Socket::AdapterTls)];
 
-	Utils::rawPairsToStl(params, request->params, request->params_count);
-	Utils::rawPairsToStl(headers, request->headers, request->headers_count);
-	Utils::rawPairsToStl(data, request->data, request->data_count);
-	Utils::rawFilesInfoToFilesIncoming(files, request->files, request->files_count);
+	// Create the socket adapter
+	Socket::Adapter *socket_adapter = createSocketAdapter(request, addr);
 
-	auto it_cookie = headers.find("Cookie");
+	HttpClient::Request proc_request;
+	HttpClient::Response proc_response;
 
-	if (headers.cend() != it_cookie)
+	if (false == initServerObjects(&proc_request, &proc_response, request, socket_adapter) )
 	{
-		Utils::parseCookies(it_cookie->second, cookies);
+		return EXIT_FAILURE;
 	}
 
-	// Create socket adapter
-	uint8_t addr[sizeof(HttpServer::SocketAdapterTls)];
-
-	HttpServer::SocketAdapter *socket_adapter;
-
-	if (request->tls_session)
-	{
-		socket_adapter = new (addr) HttpServer::SocketAdapterTls(request->tls_session);
-	}
-	else
-	{
-		socket_adapter = new (addr) HttpServer::SocketAdapterDefault(request->socket);
-	}
-
-	HttpServer::ServerRequest proc_request {
-		*socket_adapter,
-		std::string(request->method),
-		std::string(request->uri_reference),
-		std::string(request->document_root),
-		std::move(params),
-		std::move(headers),
-		std::move(data),
-		std::move(files),
-		std::move(cookies)
-	};
-
-	HttpServer::ServerResponse proc_response {
-		*socket_adapter,
-		std::map<std::string, std::string>()
-	};
-
-	const std::string absolute_path = proc_request.document_root + proc_request.uri_reference;
+	const std::string absolute_path = proc_request.document_root + proc_request.path;
 
 	int result = EXIT_SUCCESS;
 
-	if (std::string::npos == absolute_path.find("/../") && System::isFileExists(absolute_path) )
+	if (isSwitchingProtocols(proc_request, proc_response) )
 	{
-		auto it_connection = proc_request.headers.find("Connection");
+
+	}
+	else if (std::string::npos == absolute_path.find("/../") && System::isFileExists(absolute_path) )
+	{
+		auto it_connection = proc_request.headers.find("connection");
 
 		if (proc_request.headers.cend() != it_connection)
 		{
-			proc_response.headers["Connection"] = it_connection->second;
+			proc_response.headers["connection"] = it_connection->second;
 		}
 
-		proc_response.headers["X-Sendfile"] = absolute_path;
+		proc_response.headers["x-sendfile"] = absolute_path;
 	}
 	else
 	{
-		result = test(proc_request, proc_response);
+		// Call application
+		result = Application::test(proc_request, proc_response);
 	}
 
-	socket_adapter->~SocketAdapter();
+	destroySocketAdapter(socket_adapter);
 
 	if (proc_response.headers.size() )
 	{
-		Utils::raw_pair *headers;
-		Utils::stlToRawPairs(&headers, proc_response.headers);
-
-		response->headers_count = proc_response.headers.size();
-		response->headers = headers;
+		response->data_size = Utils::getPackContainerSize(proc_response.headers);
+		response->response_data = new uint8_t[response->data_size];
+		Utils::packContainer(reinterpret_cast<uint8_t *>(response->response_data), proc_response.headers);
 	}
+
+	cleanProtocolData(&proc_response);
 
 	return result;
 }
 
-DLLEXPORT void application_clear(Utils::raw_pair headers[], const size_t headers_count)
+DLLEXPORT void application_clear(void *response_data, size_t response_size)
 {
-	if (headers && headers_count)
+	if (response_data && response_size)
 	{
-		destroyRawPairs(headers, headers_count);
+		delete[] reinterpret_cast<uint8_t *>(response_data);
 	}
 }
 

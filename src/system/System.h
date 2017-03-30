@@ -2,9 +2,8 @@
 
 #ifdef WIN32
 	#include <WS2tcpip.h>
-	#include <Windows.h>
-	#undef min
-	#undef max
+
+	typedef long ssize_t;
 
 	::TCHAR myWndClassName[];
 
@@ -26,15 +25,11 @@
         #define SIGUSR2 (WM_USER + 12)
     #endif
 #elif POSIX
-	#include <csignal>
-	#include <sys/sysinfo.h>
-	#include <sys/stat.h>
-	#include <unistd.h>
+	#include <sys/types.h>
 #else
 	#error "Undefine platform"
 #endif
 
-#include <vector>
 #include <string>
 #include <ctime>
 #include <thread>
@@ -57,33 +52,21 @@ namespace System
 	#error "Undefine platform"
 #endif
 
-	inline native_processid_type getProcessId()
-	{
-	#ifdef WIN32
-		return ::GetCurrentProcessId();
-	#elif POSIX
-		return ::getpid();
-	#else
-		#error "Undefine platform"
-	#endif
-	}
+	native_processid_type getProcessId() noexcept;
 
-	bool sendSignal(const native_processid_type pid, const int signal);
+	bool changeCurrentDirectory(const std::string &dir);
 
-	inline bool isDoneThread(const std::thread::native_handle_type handle)
-	{
-	#ifdef WIN32
-		return WAIT_OBJECT_0 == ::WaitForSingleObject(handle, 0);
-	#elif POSIX
-		return 0 != ::pthread_kill(handle, 0);
-	#else
-		#error "Undefine platform"
-	#endif
-	}
+	bool isProcessExists(const native_processid_type pid) noexcept;
+
+	bool sendSignal(const native_processid_type pid, const int signal) noexcept;
+
+	bool isDoneThread(const std::thread::native_handle_type handle) noexcept;
 
 	std::string getTempDir();
 
 	bool isFileExists(const std::string &fileName);
 
 	bool getFileSizeAndTimeGmt(const std::string &filePath, size_t *fileSize, time_t *fileTime);
+
+	void filterSharedMemoryName(std::string &memName);
 };
