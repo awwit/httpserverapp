@@ -3,6 +3,7 @@
 
 #include "../../transfer/http2/HPack.h"
 
+#include <array>
 #include <random>
 
 namespace HttpClient
