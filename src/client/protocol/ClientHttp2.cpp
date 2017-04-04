@@ -42,25 +42,25 @@ namespace HttpClient
 	{
 		std::vector<char> buf;
 		buf.reserve(4096);
+		buf.resize(Http2::FRAME_HEADER_SIZE + sizeof(uint8_t) );
 
 		headers.emplace(headers.begin(), ":status", std::to_string(static_cast<int>(status) ) );
 
 		HPack::pack(buf, headers, this->stream->dynamic_table);
 
-		uint32_t data_size = buf.size();
+		uint32_t data_size = buf.size() - Http2::FRAME_HEADER_SIZE - sizeof(uint8_t);
 
 		const uint8_t padding = getPaddingSize(data_size);
 		const uint16_t padding_size = padding + sizeof(uint8_t);
 
-		if (padding_size)
+		if (data_size + padding_size > this->stream->settings.max_frame_size)
 		{
-			if (data_size + padding_size > this->stream->settings.max_frame_size)
-			{
-				data_size = this->stream->settings.max_frame_size - padding_size;
-			}
+			data_size = this->stream->settings.max_frame_size - padding_size;
 		}
 
 		const size_t frame_size = data_size + padding_size;
+
+		buf.resize(frame_size + Http2::FRAME_HEADER_SIZE);
 
 		Http2::FrameFlag flags = Http2::FrameFlag::END_HEADERS;
 
@@ -69,23 +69,27 @@ namespace HttpClient
 			flags |= Http2::FrameFlag::END_STREAM;
 		}
 
-		if (padding_size)
+		flags |= Http2::FrameFlag::PADDED;
+
+		buf[Http2::FRAME_HEADER_SIZE] = padding;
+
+		if (padding)
 		{
-			flags |= Http2::FrameFlag::PADDED;
-
-			buf.insert(buf.begin(), sizeof(uint8_t), padding);
-
-			if (padding)
-			{
-				buf.insert(buf.end(), padding, 0);
-			}
+			std::fill(buf.end() - padding, buf.end(), 0);
 		}
-
-		buf.insert(buf.begin(), Http2::FRAME_HEADER_SIZE, 0);
 
 		this->stream->setHttp2FrameHeader(reinterpret_cast<uint8_t *>(buf.data() ), frame_size, Http2::FrameType::HEADERS, flags);
 
-		return this->sock->nonblock_send(buf.data(), buf.size(), timeout) > 0;
+		this->stream->lock();
+
+		auto const is_sended = this->sock->nonblock_send(buf.data(), buf.size(), timeout) > 0;
+
+		if (endStream || false == is_sended)
+		{
+			this->stream->unlock();
+		}
+
+		return is_sended;
 	}
 
 	void ClientHttp2::sendWindowUpdate(const uint32_t size, const std::chrono::milliseconds &timeout) const
@@ -111,22 +115,19 @@ namespace HttpClient
 
 		while (total < size)
 		{
-			buf.resize(0);
-
 			size_t data_size = (size - total < this->stream->settings.max_frame_size) ? size - total : this->stream->settings.max_frame_size;
 
 			const uint8_t padding = getPaddingSize(data_size);
 			const uint16_t padding_size = padding + sizeof(uint8_t);
 
-			if (padding_size)
+			if (data_size + padding_size > this->stream->settings.max_frame_size)
 			{
-				if (data_size + padding_size > this->stream->settings.max_frame_size)
-				{
-					data_size = this->stream->settings.max_frame_size - padding_size;
-				}
+				data_size = this->stream->settings.max_frame_size - padding_size;
 			}
 
 			const size_t frame_size = data_size + padding_size;
+
+			buf.resize(frame_size + Http2::FRAME_HEADER_SIZE);
 
 			if (static_cast<int32_t>(this->stream->window_size_out - this->stream->settings.max_frame_size) <= 0)
 			{
@@ -149,30 +150,33 @@ namespace HttpClient
 				flags |= Http2::FrameFlag::END_STREAM;
 			}
 
+			size_t cur = Http2::FRAME_HEADER_SIZE;
+
 			if (padding_size)
 			{
 				flags |= Http2::FrameFlag::PADDED;
 
-				buf.insert(buf.begin(), sizeof(uint8_t), padding);
-			}
+				buf[cur] = padding;
 
-			buf.insert(buf.begin(), Http2::FRAME_HEADER_SIZE, 0);
+				++cur;
+			}
 
 			const Http2::FrameType frame_type = Http2::FrameType::DATA;
 
 			this->stream->setHttp2FrameHeader(buf.data(), frame_size, frame_type, flags);
 
-			std::copy(data, data + data_size, std::back_inserter(buf) );
+			std::copy(data, data + data_size, buf.begin() + cur);
 
 			if (padding)
 			{
-				buf.insert(buf.end(), padding, 0);
+				std::fill(buf.end() - padding, buf.end(), 0);
 			}
 
 			long sended = this->sock->nonblock_send(buf.data(), buf.size(), timeout);
 
 			if (sended <= 0)
 			{
+				total = 0;
 				break;
 			}
 
@@ -182,6 +186,11 @@ namespace HttpClient
 			total += data_size;
 		}
 
-		return total;
+		if (total == 0 || endStream)
+		{
+			this->stream->unlock();
+		}
+
+		return static_cast<long>(total);
 	}
 };

@@ -28,6 +28,18 @@ void destroySocketAdapter(Socket::Adapter *adapter)
 	}
 }
 
+std::string getClearPath(const std::string &path)
+{
+	const size_t pos = path.find_first_of("?#");
+
+	if (std::string::npos == pos)
+	{
+		return path;
+	}
+
+	return std::string(path.cbegin(), path.cbegin() + pos);
+}
+
 static void getIncomingVars(std::unordered_multimap<std::string, std::string> &params, const std::string &uri)
 {
 	const size_t start = uri.find('?');
@@ -37,9 +49,21 @@ static void getIncomingVars(std::unordered_multimap<std::string, std::string> &p
 		return;
 	}
 
+	const size_t finish = uri.find('#');
+
+	if (finish < start)
+	{
+		return;
+	}
+
 	for (size_t var_pos = start + 1, var_end = 0; std::string::npos != var_end; var_pos = var_end + 1)
 	{
 		var_end = uri.find('&', var_pos);
+
+		if (var_end > finish)
+		{
+			var_end = std::string::npos;
+		}
 
 		size_t delimiter = uri.find('=', var_pos);
 
@@ -140,13 +164,16 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 			std::deque<std::pair<std::string, std::string> > dynamic_table;
 			src = Utils::unpackVector(dynamic_table, src);
 
+			std::mutex *mtx = nullptr;
+			src = Utils::unpackPointer(reinterpret_cast<void **>(&mtx), src);
+
 			src = Utils::unpackContainer(headers, src);
 			src = Utils::unpackContainer(data, src);
 			src = Utils::unpackFilesIncoming(files, src);
 
 			getIncomingVars(params, path);
 
-			Http2::OutStream *stream = new Http2::OutStream(stream_id, settings, Http2::DynamicTable(settings.header_table_size, settings.max_header_list_size, std::move(dynamic_table) ) );
+			Http2::OutStream *stream = new Http2::OutStream(stream_id, settings, Http2::DynamicTable(settings.header_table_size, settings.max_header_list_size, std::move(dynamic_table) ), mtx);
 
 			prot = new HttpClient::ClientHttp2(socket_adapter, stream);
 

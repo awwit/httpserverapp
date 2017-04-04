@@ -27,7 +27,7 @@ DLLEXPORT int application_call(Transfer::app_request *request, Transfer::app_res
 		return EXIT_FAILURE;
 	}
 
-	const std::string absolute_path = proc_request.document_root + proc_request.path;
+	const std::string absolute_path = proc_request.document_root + getClearPath(proc_request.path);
 
 	int result = EXIT_SUCCESS;
 
