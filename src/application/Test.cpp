@@ -135,11 +135,12 @@ namespace Application
 
 		const std::chrono::milliseconds timeout(5000);
 
-		response.sendHeaders(additional, timeout, s.empty() );
-
-		if (false == s.empty() )
+		if (response.sendHeaders(additional, timeout, s.empty() ) )
 		{
-			response.sendData(s.data(), s.size(), timeout, true);
+			if (false == s.empty() )
+			{
+				response.sendData(s.data(), s.size(), timeout, true);
+			}
 		}
 
 		return EXIT_SUCCESS;

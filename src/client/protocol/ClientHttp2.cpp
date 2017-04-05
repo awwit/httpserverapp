@@ -80,16 +80,9 @@ namespace HttpClient
 
 		this->stream->setHttp2FrameHeader(reinterpret_cast<uint8_t *>(buf.data() ), frame_size, Http2::FrameType::HEADERS, flags);
 
-		this->stream->lock();
+		const std::unique_lock<std::mutex> lock(*this->stream->mtx);
 
-		auto const is_sended = this->sock->nonblock_send(buf.data(), buf.size(), timeout) > 0;
-
-		if (endStream || false == is_sended)
-		{
-			this->stream->unlock();
-		}
-
-		return is_sended;
+		return this->sock->nonblock_send(buf.data(), buf.size(), timeout) > 0;
 	}
 
 	void ClientHttp2::sendWindowUpdate(const uint32_t size, const std::chrono::milliseconds &timeout) const
@@ -100,6 +93,8 @@ namespace HttpClient
 		addr = this->stream->setHttp2FrameHeader(addr, sizeof(uint32_t), Http2::FrameType::WINDOW_UPDATE, Http2::FrameFlag::EMPTY);
 
 		*reinterpret_cast<uint32_t *>(addr) = ::htonl(size);
+
+		const std::unique_lock<std::mutex> lock(*this->stream->mtx);
 
 		this->sock->nonblock_send(buf.data(), buf.size(), timeout);
 	}
@@ -161,9 +156,7 @@ namespace HttpClient
 				++cur;
 			}
 
-			const Http2::FrameType frame_type = Http2::FrameType::DATA;
-
-			this->stream->setHttp2FrameHeader(buf.data(), frame_size, frame_type, flags);
+			this->stream->setHttp2FrameHeader(buf.data(), frame_size, Http2::FrameType::DATA, flags);
 
 			std::copy(data, data + data_size, buf.begin() + cur);
 
@@ -172,7 +165,11 @@ namespace HttpClient
 				std::fill(buf.end() - padding, buf.end(), 0);
 			}
 
-			long sended = this->sock->nonblock_send(buf.data(), buf.size(), timeout);
+			this->stream->lock();
+
+			const long sended = this->sock->nonblock_send(buf.data(), buf.size(), timeout);
+
+			this->stream->unlock();
 
 			if (sended <= 0)
 			{
@@ -184,11 +181,6 @@ namespace HttpClient
 
 			data += data_size;
 			total += data_size;
-		}
-
-		if (total == 0 || endStream)
-		{
-			this->stream->unlock();
 		}
 
 		return static_cast<long>(total);

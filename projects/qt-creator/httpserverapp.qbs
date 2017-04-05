@@ -32,6 +32,8 @@ Project {
             "../../src/client/protocol/ClientHttp2.h",
             "../../src/client/protocol/ClientProtocol.cpp",
             "../../src/client/protocol/ClientProtocol.h",
+            "../../src/client/protocol/WebSocket.cpp",
+            "../../src/client/protocol/WebSocket.h",
             "../../src/utils/Event.cpp",
             "../../src/utils/Event.h",
             "../../src/transfer/FileIncoming.cpp",
