@@ -6,12 +6,12 @@
 
 #include "utils/Utils.h"
 
-DLLEXPORT bool application_init()
+EXPORT bool application_init(const char *root)
 {
 	return true;
 }
 
-DLLEXPORT int application_call(Transfer::app_request *request, Transfer::app_response *response)
+EXPORT int application_call(Transfer::app_request *request, Transfer::app_response *response)
 {
 	// Allocate memory on the stack
 	uint8_t addr[sizeof(Socket::AdapterTls)];
@@ -61,12 +61,12 @@ DLLEXPORT int application_call(Transfer::app_request *request, Transfer::app_res
 		Utils::packContainer(reinterpret_cast<uint8_t *>(response->response_data), proc_response.headers);
 	}
 
-	cleanProtocolData(&proc_response);
+	freeProtocolData(&proc_response);
 
 	return result;
 }
 
-DLLEXPORT void application_clear(void *response_data, size_t response_size)
+EXPORT void application_clear(void *response_data, size_t response_size)
 {
 	if (response_data && response_size)
 	{
@@ -74,7 +74,7 @@ DLLEXPORT void application_clear(void *response_data, size_t response_size)
 	}
 }
 
-DLLEXPORT void application_final()
+EXPORT void application_final(const char *root)
 {
 	
 }

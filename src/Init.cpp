@@ -211,7 +211,7 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 	return success;
 }
 
-void cleanProtocolData(HttpClient::Response *response)
+void freeProtocolData(HttpClient::Response *response)
 {
 	if (response)
 	{
