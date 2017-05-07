@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#ifdef WIN32
+#ifdef _MSC_VER
 	#define EXPORT extern "C" __declspec(dllexport)
 #else
 	#define EXPORT extern "C"
