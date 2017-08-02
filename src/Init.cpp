@@ -34,10 +34,10 @@ std::string getClearPath(const std::string &path)
 
 	if (std::string::npos == pos)
 	{
-		return path;
+		return Utils::urlDecode(path);
 	}
 
-	return std::string(path.cbegin(), path.cbegin() + pos);
+	return Utils::urlDecode(path.substr(0, pos) );
 }
 
 static void getIncomingVars(std::unordered_multimap<std::string, std::string> &params, const std::string &uri)
