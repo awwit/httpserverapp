@@ -1,4 +1,4 @@
-﻿
+
 #include "Main.h"
 #include "Init.h"
 
@@ -19,10 +19,10 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 	// Create the socket adapter
 	Socket::Adapter *socket_adapter = createSocketAdapter(request, addr);
 
-	HttpClient::Request proc_request;
-	HttpClient::Response proc_response;
+	HttpServer::Request proc_request;
+	HttpServer::Response proc_response;
 
-	if (false == initServerObjects(&proc_request, &proc_response, request, socket_adapter) == false) {
+	if (initServerObjects(&proc_request, &proc_response, request, socket_adapter) == false) {
 		return EXIT_FAILURE;
 	}
 
@@ -38,8 +38,7 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 	{
 		auto it_connection = proc_request.headers.find("connection");
 
-		if (proc_request.headers.cend() != it_connection)
-		{
+		if (proc_request.headers.cend() != it_connection) {
 			proc_response.headers["connection"] = it_connection->second;
 		}
 

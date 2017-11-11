@@ -20,14 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\application\Test.cpp" />
-    <ClCompile Include="..\..\src\client\protocol\ClientHttp1.cpp" />
-    <ClCompile Include="..\..\src\client\protocol\ClientHttp2.cpp" />
-    <ClCompile Include="..\..\src\client\protocol\ClientProtocol.cpp" />
-    <ClCompile Include="..\..\src\client\protocol\WebSocket.cpp" />
-    <ClCompile Include="..\..\src\client\Request.cpp" />
-    <ClCompile Include="..\..\src\client\Response.cpp" />
     <ClCompile Include="..\..\src\Init.cpp" />
     <ClCompile Include="..\..\src\Main.cpp" />
+    <ClCompile Include="..\..\src\server\protocol\ServerHttp1.cpp" />
+    <ClCompile Include="..\..\src\server\protocol\ServerHttp2.cpp" />
+    <ClCompile Include="..\..\src\server\protocol\ServerProtocol.cpp" />
+    <ClCompile Include="..\..\src\server\Request.cpp" />
+    <ClCompile Include="..\..\src\server\Response.cpp" />
     <ClCompile Include="..\..\src\socket\Adapter.cpp" />
     <ClCompile Include="..\..\src\socket\AdapterDefault.cpp" />
     <ClCompile Include="..\..\src\socket\AdapterTls.cpp" />
@@ -42,14 +41,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\application\Test.h" />
-    <ClInclude Include="..\..\src\client\protocol\ClientHttp1.h" />
-    <ClInclude Include="..\..\src\client\protocol\ClientHttp2.h" />
-    <ClInclude Include="..\..\src\client\protocol\ClientProtocol.h" />
-    <ClInclude Include="..\..\src\client\protocol\WebSocket.h" />
-    <ClInclude Include="..\..\src\client\Request.h" />
-    <ClInclude Include="..\..\src\client\Response.h" />
     <ClInclude Include="..\..\src\Init.h" />
     <ClInclude Include="..\..\src\Main.h" />
+    <ClInclude Include="..\..\src\server\protocol\ServerHttp1.h" />
+    <ClInclude Include="..\..\src\server\protocol\ServerHttp2.h" />
+    <ClInclude Include="..\..\src\server\protocol\ServerProtocol.h" />
+    <ClInclude Include="..\..\src\server\Request.h" />
+    <ClInclude Include="..\..\src\server\Response.h" />
     <ClInclude Include="..\..\src\socket\Adapter.h" />
     <ClInclude Include="..\..\src\socket\AdapterDefault.h" />
     <ClInclude Include="..\..\src\socket\AdapterTls.h" />

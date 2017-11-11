@@ -5,5 +5,5 @@
 
 namespace Application
 {
-	bool test(HttpClient::Request &, HttpClient::Response &);
+	bool test(HttpServer::Request &, HttpServer::Response &);
 }

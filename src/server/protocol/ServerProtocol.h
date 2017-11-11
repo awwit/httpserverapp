@@ -3,16 +3,16 @@
 #include "../../socket/Adapter.h"
 #include "../../transfer/HttpStatusCode.h"
 
-namespace HttpClient
+namespace HttpServer
 {
-	class ClientProtocol
+	class ServerProtocol
 	{
 	protected:
 		Socket::Adapter *sock;
 
 	public:
-		ClientProtocol(Socket::Adapter *sock);
-		virtual ~ClientProtocol() noexcept = default;
+		ServerProtocol(Socket::Adapter *sock);
+		virtual ~ServerProtocol() noexcept = default;
 
 		Socket::Adapter *getSocket() noexcept;
 

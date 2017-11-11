@@ -17,7 +17,7 @@ namespace Utils
 			do {
 				this->cv.wait(lck);
 			}
-			while (false == this->signaled.load() );
+			while (this->signaled.load() == false);
 		}
 
 		if (false == this->manually) {
@@ -55,7 +55,7 @@ namespace Utils
 					break;
 				}
 			}
-			while (false == this->signaled.load() );
+			while (this->signaled.load() == false);
 		}
 
 		if (false == this->manually) {

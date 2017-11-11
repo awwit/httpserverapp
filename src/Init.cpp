@@ -7,8 +7,8 @@
 #include "transfer/http2/Http2.h"
 #include "utils/Utils.h"
 
-#include "server/protocol/ClientHttp1.h"
-#include "server/protocol/ClientHttp2.h"
+#include "server/protocol/ServerHttp1.h"
+#include "server/protocol/ServerHttp2.h"
 
 #include <locale>
 #include <codecvt>
@@ -98,14 +98,14 @@ static void getIncomingVars(std::unordered_multimap<std::string, std::string> &p
 	}
 }
 
-bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *procResponse, const Transfer::app_request *request, Socket::Adapter *socket_adapter)
+bool initServerObjects(HttpServer::Request *procRequest, HttpServer::Response *procResponse, const Transfer::app_request *request, Socket::Adapter *socket_adapter)
 {
 	const uint8_t *src = reinterpret_cast<const uint8_t *>(request->request_data);
 
 	size_t protocol_number;
 	src = Utils::unpackNumber(&protocol_number, src);
 	Transfer::ProtocolVariant protocol_variant = static_cast<Transfer::ProtocolVariant>(protocol_number);
-	HttpClient::ClientProtocol *prot = nullptr;
+	HttpServer::ServerProtocol *prot = nullptr;
 
 	std::string document_root;
 	std::string host;
@@ -139,7 +139,7 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 
 			getIncomingVars(params, path);
 
-			prot = new HttpClient::ClientHttp1(socket_adapter);
+			prot = new HttpServer::ServerHttp1(socket_adapter);
 
 			break;
 		}
@@ -192,7 +192,7 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 
 			Http2::OutStream *stream = new Http2::OutStream(stream_id, settings, Http2::DynamicTable(settings.header_table_size, settings.max_header_list_size, std::move(dynamic_table) ), mtx);
 
-			prot = new HttpClient::ClientHttp2(socket_adapter, stream);
+			prot = new HttpServer::ServerHttp2(socket_adapter, stream);
 
 			break;
 		}
@@ -203,7 +203,7 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 		}
 	}
 
-	*procRequest = HttpClient::Request {
+	*procRequest = HttpServer::Request {
 		prot,
 		std::move(document_root),
 		std::move(host),
@@ -217,7 +217,7 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 		protocol_variant
 	};
 
-	*procResponse = HttpClient::Response {
+	*procResponse = HttpServer::Response {
 		prot,
 		protocol_variant,
 		std::unordered_map<std::string, std::string>(),
@@ -227,14 +227,14 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 	return success;
 }
 
-void freeProtocolData(HttpClient::Response *response)
+void freeProtocolData(HttpServer::Response *response)
 {
 	if (response) {
 		delete response->prot;
 	}
 }
 
-bool isSwitchingProtocols(const HttpClient::Request &request, HttpClient::Response &response)
+bool isSwitchingProtocols(const HttpServer::Request &request, HttpServer::Response &response)
 {
 	// Check for https is not set
 	if (request.prot->getSocket()->get_tls_session() != 0) {

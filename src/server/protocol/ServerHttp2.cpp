@@ -1,20 +1,20 @@
 
-#include "ClientHttp2.h"
+#include "ServerHttp2.h"
 
 #include "../../transfer/http2/HPack.h"
 
 #include <array>
 #include <random>
 
-namespace HttpClient
+namespace HttpServer
 {
-	ClientHttp2::ClientHttp2(Socket::Adapter *sock, Http2::OutStream *stream)
-		: ClientProtocol(sock), stream(stream)
+	ServerHttp2::ServerHttp2(Socket::Adapter *sock, Http2::OutStream *stream)
+		: ServerProtocol(sock), stream(stream)
 	{
 
 	}
 
-	ClientHttp2::~ClientHttp2() noexcept {
+	ServerHttp2::~ServerHttp2() noexcept {
 		delete this->stream;
 	}
 
@@ -35,7 +35,7 @@ namespace HttpClient
 		return padding;
 	}
 
-	bool ClientHttp2::sendHeaders(const Http::StatusCode status, std::vector<std::pair<std::string, std::string> > &headers, const std::chrono::milliseconds &timeout, const bool endStream) const
+	bool ServerHttp2::sendHeaders(const Http::StatusCode status, std::vector<std::pair<std::string, std::string> > &headers, const std::chrono::milliseconds &timeout, const bool endStream) const
 	{
 		std::vector<char> buf;
 		buf.reserve(4096);
@@ -79,7 +79,7 @@ namespace HttpClient
 		return this->sock->nonblock_send(buf.data(), buf.size(), timeout) > 0;
 	}
 
-	void ClientHttp2::sendWindowUpdate(const uint32_t size, const std::chrono::milliseconds &timeout) const
+	void ServerHttp2::sendWindowUpdate(const uint32_t size, const std::chrono::milliseconds &timeout) const
 	{
 		std::array<uint8_t, Http2::FRAME_HEADER_SIZE + sizeof(uint32_t)> buf;
 		uint8_t *addr = buf.data();
@@ -93,7 +93,7 @@ namespace HttpClient
 		this->sock->nonblock_send(buf.data(), buf.size(), timeout);
 	}
 
-	long ClientHttp2::sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream) const
+	long ServerHttp2::sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream) const
 	{
 		const uint8_t *data = reinterpret_cast<const uint8_t *>(src);
 

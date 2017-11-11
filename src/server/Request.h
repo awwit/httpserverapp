@@ -1,12 +1,12 @@
-﻿#pragma once
+#pragma once
 
-#include "protocol/ClientProtocol.h"
+#include "protocol/ServerProtocol.h"
 #include "../transfer/FileIncoming.h"
 #include "../transfer/ProtocolVariant.h"
 
 #include <unordered_map>
 
-namespace HttpClient
+namespace HttpServer
 {
 	/**
 	 * Структура запроса (входные данные)
@@ -23,7 +23,7 @@ namespace HttpClient
 	 */
 	struct Request
 	{
-		ClientProtocol *prot;
+		ServerProtocol *prot;
 		std::string document_root;
 		std::string host;
 		std::string path;
@@ -44,6 +44,12 @@ namespace HttpClient
 		std::string getDataAsString(const std::string &key) const;
 
 		std::vector<std::string> getDataAsArray(const std::string &key) const;
+
+		bool isFileExists(const std::string &key) const;
+
+		Transfer::FileIncoming getFile(const std::string &key) const;
+
+		std::vector<Transfer::FileIncoming> getFilesAsArray(const std::string &key) const;
 
 		std::string getCookieAsString(const std::string &cookieName) const;
 	};

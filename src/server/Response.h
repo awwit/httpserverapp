@@ -1,17 +1,17 @@
-﻿#pragma once
+#pragma once
 
-#include "protocol/ClientProtocol.h"
+#include "protocol/ServerProtocol.h"
 #include "../transfer/ProtocolVariant.h"
 #include "../transfer/HttpStatusCode.h"
 
 #include <unordered_map>
 #include <string>
 
-namespace HttpClient
+namespace HttpServer
 {
 	struct Response
 	{
-		ClientProtocol *prot;
+		ServerProtocol *prot;
 		Transfer::ProtocolVariant protocol_variant;
 		std::unordered_map<std::string, std::string> headers;
 		Http::StatusCode status;

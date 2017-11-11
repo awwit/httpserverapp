@@ -1,19 +1,19 @@
 #pragma once
 
-#include "ClientProtocol.h"
+#include "ServerProtocol.h"
 
 #include "../../transfer/http2/Http2.h"
 
-namespace HttpClient
+namespace HttpServer
 {
-	class ClientHttp2 : public ClientProtocol
+	class ServerHttp2 : public ServerProtocol
 	{
 	protected:
 		Http2::OutStream *stream;
 
 	public:
-		ClientHttp2(Socket::Adapter *sock, Http2::OutStream *stream);
-		virtual ~ClientHttp2() noexcept;
+		ServerHttp2(Socket::Adapter *sock, Http2::OutStream *stream);
+		virtual ~ServerHttp2() noexcept;
 
 		void sendWindowUpdate(const uint32_t size, const std::chrono::milliseconds &timeout) const;
 

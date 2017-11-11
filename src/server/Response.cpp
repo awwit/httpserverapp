@@ -5,7 +5,7 @@
 
 #include <random>
 
-namespace HttpClient
+namespace HttpServer
 {
 	void Response::setStatusCode(const Http::StatusCode status) {
 		this->status = status;

@@ -5,7 +5,7 @@
 
 namespace Application
 {
-	bool test(HttpClient::Request &request, HttpClient::Response &response)
+	bool test(HttpServer::Request &request, HttpServer::Response &response)
 	{
 		// Output incoming headers
 
@@ -135,10 +135,8 @@ namespace Application
 
 		const std::chrono::milliseconds timeout(5000);
 
-		if (response.sendHeaders(additional, timeout, s.empty() ) )
-		{
-			if (false == s.empty() )
-			{
+		if (response.sendHeaders(additional, timeout, s.empty() ) ) {
+			if (s.empty() == false) {
 				response.sendData(s.data(), s.size(), timeout, true);
 			}
 		}
