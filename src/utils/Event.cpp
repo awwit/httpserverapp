@@ -46,7 +46,7 @@ namespace Utils
 	{
 		bool is_timeout = false;
 
-		if (false == this->signaled.load() == false) {
+		if (this->signaled.load() == false) {
 			std::unique_lock<std::mutex> lck(this->mtx);
 
 			do {
