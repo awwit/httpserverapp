@@ -112,9 +112,16 @@ namespace Socket
 	//	::gnutls_record_set_timeout(this->session, static_cast<const unsigned int>(timeout.count() ) );
 
 		Socket sock(this->get_handle() );
-		sock.nonblock_recv_sync();
 
-		return ::gnutls_record_recv(this->session, buf, length);
+		long result;
+
+		do {
+			sock.nonblock_recv_sync();
+			result = ::gnutls_record_recv(this->session, buf, length);
+		}
+		while (result == GNUTLS_E_AGAIN || result == GNUTLS_E_INTERRUPTED);
+
+		return result;
 	}
 
 	long AdapterTls::nonblock_send(const void *buf, const size_t length, const std::chrono::milliseconds &timeout) const noexcept {

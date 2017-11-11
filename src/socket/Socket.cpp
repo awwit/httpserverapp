@@ -294,7 +294,7 @@ namespace Socket
 	#ifdef WIN32
 		WSAPOLLFD event = {
 			this->socket_handle,
-			POLLRDNORM | POLLRDBAND,
+			POLLIN,
 			0
 		};
 
@@ -344,12 +344,12 @@ namespace Socket
 	#ifdef WIN32
 		WSAPOLLFD event = {
 			socket_handle,
-			POLLWRNORM,
+			POLLOUT,
 			0
 		};
 
 		while (total < length) {
-			if (1 == ::WSAPoll(&event, 1, static_cast<::INT>(timeout.count() ) ) && event.revents & POLLWRNORM) {
+			if (1 == ::WSAPoll(&event, 1, static_cast<::INT>(timeout.count() ) ) && event.revents & POLLOUT) {
 				const long send_size = ::send(socket_handle, reinterpret_cast<const char *>(data) + total, static_cast<const int>(length - total), 0);
 
 				if (send_size < 0) {
@@ -402,7 +402,7 @@ namespace Socket
 	#ifdef WIN32
 		WSAPOLLFD event = {
 			this->socket_handle,
-			POLLWRNORM,
+			POLLOUT,
 			0
 		};
 
