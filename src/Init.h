@@ -1,7 +1,7 @@
 #pragma once
 
-#include "client/Request.h"
-#include "client/Response.h"
+#include "server/Request.h"
+#include "server/Response.h"
 #include "transfer/AppRequest.h"
 #include "transfer/AppResponse.h"
 

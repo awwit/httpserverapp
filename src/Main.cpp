@@ -22,8 +22,7 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 	HttpClient::Request proc_request;
 	HttpClient::Response proc_response;
 
-	if (false == initServerObjects(&proc_request, &proc_response, request, socket_adapter) )
-	{
+	if (false == initServerObjects(&proc_request, &proc_response, request, socket_adapter) == false) {
 		return EXIT_FAILURE;
 	}
 
@@ -54,8 +53,7 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 
 	destroySocketAdapter(socket_adapter);
 
-	if (proc_response.headers.size() )
-	{
+	if (proc_response.headers.size() ) {
 		response->data_size = Utils::getPackContainerSize(proc_response.headers);
 		response->response_data = new uint8_t[response->data_size];
 		Utils::packContainer(reinterpret_cast<uint8_t *>(response->response_data), proc_response.headers);
@@ -68,8 +66,7 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 
 EXPORT void application_clear(void *response_data, size_t response_size)
 {
-	if (response_data && response_size)
-	{
+	if (response_data && response_size) {
 		delete[] reinterpret_cast<uint8_t *>(response_data);
 	}
 }

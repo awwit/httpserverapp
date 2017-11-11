@@ -7,13 +7,15 @@
 #include "transfer/http2/Http2.h"
 #include "utils/Utils.h"
 
-#include "client/protocol/ClientHttp1.h"
-#include "client/protocol/ClientHttp2.h"
+#include "server/protocol/ClientHttp1.h"
+#include "server/protocol/ClientHttp2.h"
+
+#include <locale>
+#include <codecvt>
 
 Socket::Adapter *createSocketAdapter(Transfer::app_request *request, void *addr)
 {
-	if (request->tls_session)
-	{
+	if (request->tls_session) {
 		return new (addr) Socket::AdapterTls(request->tls_session);
 	}
 
@@ -22,37 +24,48 @@ Socket::Adapter *createSocketAdapter(Transfer::app_request *request, void *addr)
 
 void destroySocketAdapter(Socket::Adapter *adapter)
 {
-	if (adapter)
-	{
+	if (adapter) {
 		adapter->~Adapter();
 	}
+}
+
+std::string utf8ToLocal(const std::string &u8str)
+{
+	std::locale loc("");
+
+	std::wstring_convert<std::codecvt_utf8<wchar_t> > conv;
+	std::wstring wstr = conv.from_bytes(u8str);
+
+	std::string str(wstr.size(), 0);
+	std::use_facet<std::ctype<wchar_t> >(loc).narrow(wstr.data(), wstr.data() + wstr.size(), '?', &str.front() );
+
+	return str;
 }
 
 std::string getClearPath(const std::string &path)
 {
 	const size_t pos = path.find_first_of("?#");
 
-	if (std::string::npos == pos)
-	{
-		return Utils::urlDecode(path);
-	}
+	const std::string clean = Utils::urlDecode(std::string::npos == pos ? path : path.substr(0, pos) );
 
-	return Utils::urlDecode(path.substr(0, pos) );
+#ifdef WIN32
+	return utf8ToLocal(clean);
+#else
+	return clean;
+#endif
 }
 
 static void getIncomingVars(std::unordered_multimap<std::string, std::string> &params, const std::string &uri)
 {
 	const size_t start = uri.find('?');
 
-	if (std::string::npos == start)
-	{
+	if (std::string::npos == start) {
 		return;
 	}
 
 	const size_t finish = uri.find('#');
 
-	if (finish < start)
-	{
+	if (finish < start) {
 		return;
 	}
 
@@ -60,8 +73,7 @@ static void getIncomingVars(std::unordered_multimap<std::string, std::string> &p
 	{
 		var_end = uri.find('&', var_pos);
 
-		if (var_end > finish)
-		{
+		if (var_end > finish) {
 			var_end = std::string::npos;
 		}
 
@@ -121,8 +133,7 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 
 			auto const it_cookie = headers.find("cookie");
 
-			if (headers.cend() != it_cookie)
-			{
+			if (headers.cend() != it_cookie) {
 				Utils::parseCookies(it_cookie->second, cookies);
 			}
 
@@ -171,6 +182,12 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 			src = Utils::unpackContainer(data, src);
 			src = Utils::unpackFilesIncoming(files, src);
 
+			auto const it_cookie = headers.find("cookie");
+
+			if (headers.cend() != it_cookie) {
+				Utils::parseCookies(it_cookie->second, cookies);
+			}
+
 			getIncomingVars(params, path);
 
 			Http2::OutStream *stream = new Http2::OutStream(stream_id, settings, Http2::DynamicTable(settings.header_table_size, settings.max_header_list_size, std::move(dynamic_table) ), mtx);
@@ -180,8 +197,7 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 			break;
 		}
 
-		default:
-		{
+		default: {
 			success = false;
 			break;
 		}
@@ -213,30 +229,45 @@ bool initServerObjects(HttpClient::Request *procRequest, HttpClient::Response *p
 
 void freeProtocolData(HttpClient::Response *response)
 {
-	if (response)
-	{
+	if (response) {
 		delete response->prot;
 	}
 }
 
 bool isSwitchingProtocols(const HttpClient::Request &request, HttpClient::Response &response)
 {
-	if (request.prot->getSocket()->get_tls_session() != 0)
-	{
+	// Check for https is not set
+	if (request.prot->getSocket()->get_tls_session() != 0) {
 		return false;
 	}
 
+	// Check for upgrade to https
+	/*auto const it_upgrade_insecure = request.headers.find("upgrade-insecure-requests");
+
+	if (request.headers.cend() != it_upgrade_insecure) {
+		if (it_upgrade_insecure->second == "1") {
+			response.status = Http::StatusCode::MOVED_TEMPORARILY;
+			response.headers["location"] = "https://" + request.host + request.path;
+			response.headers["strict-transport-security"] = "max-age=86400";
+
+			const std::string headers = "HTTP/1.1 307 Moved Temporarily\r\nLocation: https://" + request.host + request.path + "\r\nStrict-Transport-Security: max-age=86400\r\n\r\n";
+
+			response.prot->getSocket()->nonblock_send(headers, std::chrono::milliseconds(5000) );
+
+			return true;
+		}
+	}*/
+
+	// Check if switch protocol to h2c
 	auto const it_upgrade = request.headers.find("upgrade");
 
-	if (request.headers.cend() == it_upgrade)
-	{
+	if (request.headers.cend() == it_upgrade) {
 		return false;
 	}
 
 	auto const it_connection = request.headers.find("connection");
 
-	if (request.headers.cend() == it_connection)
-	{
+	if (request.headers.cend() == it_connection) {
 		return false;
 	}
 
@@ -244,33 +275,28 @@ bool isSwitchingProtocols(const HttpClient::Request &request, HttpClient::Respon
 
 	bool is_upgrade = false;
 
-	for (auto &item : list)
-	{
+	for (auto &item : list) {
 		Utils::toLower(item);
 
-		if ("upgrade" == item)
-		{
+		if ("upgrade" == item) {
 			is_upgrade = true;
 			break;
 		}
 	}
 
-	if (false == is_upgrade)
-	{
+	if (false == is_upgrade) {
 		return false;
 	}
 
 	const std::string &upgrade = it_upgrade->second;
 
-	if ("h2c" != upgrade)
-	{
+	if ("h2c" != upgrade) {
 		return false;
 	}
 
 	auto const it_settings = request.headers.find("http2-settings");
 
-	if (request.headers.cend() == it_settings)
-	{
+	if (request.headers.cend() == it_settings) {
 		return false;
 	}
 

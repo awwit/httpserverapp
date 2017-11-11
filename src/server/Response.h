@@ -22,4 +22,4 @@ namespace HttpClient
 		bool sendHeaders(const std::vector<std::pair<std::string, std::string> > &additional, const std::chrono::milliseconds &timeout, const bool endStream = true);
 		long sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream = true) const;
 	};
-};
+}

@@ -47,4 +47,4 @@ namespace HttpClient
 
 		std::string getCookieAsString(const std::string &cookieName) const;
 	};
-};
+}

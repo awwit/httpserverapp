@@ -21,4 +21,4 @@ namespace HttpClient
 
 		virtual void close() noexcept;
 	};
-};
+}

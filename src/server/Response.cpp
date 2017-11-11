@@ -7,8 +7,7 @@
 
 namespace HttpClient
 {
-	void Response::setStatusCode(const Http::StatusCode status)
-	{
+	void Response::setStatusCode(const Http::StatusCode status) {
 		this->status = status;
 	}
 
@@ -22,8 +21,7 @@ namespace HttpClient
 		return this->prot->sendHeaders(this->status, headers, timeout, endStream);
 	}
 
-	long Response::sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream) const
-	{
+	long Response::sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream) const {
 		return this->prot->sendData(src, size, timeout, endStream);
 	}
-};
+}

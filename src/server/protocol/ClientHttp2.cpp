@@ -14,15 +14,13 @@ namespace HttpClient
 
 	}
 
-	ClientHttp2::~ClientHttp2() noexcept
-	{
+	ClientHttp2::~ClientHttp2() noexcept {
 		delete this->stream;
 	}
 
 	static uint8_t getPaddingSize(const size_t dataSize)
 	{
-		if (0 == dataSize)
-		{
+		if (0 == dataSize) {
 			return 0;
 		}
 
@@ -30,8 +28,7 @@ namespace HttpClient
 
 		uint8_t padding = rd();
 
-		while (dataSize <= padding)
-		{
+		while (dataSize <= padding) {
 			padding /= 2;
 		}
 
@@ -53,8 +50,7 @@ namespace HttpClient
 		const uint8_t padding = getPaddingSize(data_size);
 		const uint16_t padding_size = padding + sizeof(uint8_t);
 
-		if (data_size + padding_size > this->stream->settings.max_frame_size)
-		{
+		if (data_size + padding_size > this->stream->settings.max_frame_size) {
 			data_size = this->stream->settings.max_frame_size - padding_size;
 		}
 
@@ -64,8 +60,7 @@ namespace HttpClient
 
 		Http2::FrameFlag flags = Http2::FrameFlag::END_HEADERS;
 
-		if (endStream)
-		{
+		if (endStream) {
 			flags |= Http2::FrameFlag::END_STREAM;
 		}
 
@@ -73,8 +68,7 @@ namespace HttpClient
 
 		buf[Http2::FRAME_HEADER_SIZE] = padding;
 
-		if (padding)
-		{
+		if (padding) {
 			std::fill(buf.end() - padding, buf.end(), 0);
 		}
 
@@ -115,8 +109,7 @@ namespace HttpClient
 			const uint8_t padding = getPaddingSize(data_size);
 			const uint16_t padding_size = padding + sizeof(uint8_t);
 
-			if (data_size + padding_size > this->stream->settings.max_frame_size)
-			{
+			if (data_size + padding_size > this->stream->settings.max_frame_size) {
 				data_size = this->stream->settings.max_frame_size - padding_size;
 			}
 
@@ -128,8 +121,7 @@ namespace HttpClient
 			{
 				size_t update_size = this->stream->settings.initial_window_size + (size - total) - this->stream->window_size_out;
 
-				if (update_size > Http2::MAX_WINDOW_UPDATE)
-				{
+				if (update_size > Http2::MAX_WINDOW_UPDATE) {
 					update_size = Http2::MAX_WINDOW_UPDATE;
 				}
 
@@ -140,19 +132,15 @@ namespace HttpClient
 
 			Http2::FrameFlag flags = Http2::FrameFlag::EMPTY;
 
-			if (endStream && (total + data_size >= size) )
-			{
+			if (endStream && (total + data_size >= size) ) {
 				flags |= Http2::FrameFlag::END_STREAM;
 			}
 
 			size_t cur = Http2::FRAME_HEADER_SIZE;
 
-			if (padding_size)
-			{
+			if (padding_size) {
 				flags |= Http2::FrameFlag::PADDED;
-
 				buf[cur] = padding;
-
 				++cur;
 			}
 
@@ -160,8 +148,7 @@ namespace HttpClient
 
 			std::copy(data, data + data_size, buf.begin() + cur);
 
-			if (padding)
-			{
+			if (padding) {
 				std::fill(buf.end() - padding, buf.end(), 0);
 			}
 
@@ -171,8 +158,7 @@ namespace HttpClient
 
 			this->stream->unlock();
 
-			if (sended <= 0)
-			{
+			if (sended <= 0) {
 				total = 0;
 				break;
 			}
@@ -185,4 +171,4 @@ namespace HttpClient
 
 		return static_cast<long>(total);
 	}
-};
+}

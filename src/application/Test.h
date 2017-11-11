@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../client/Request.h"
-#include "../client/Response.h"
+#include "../server/Request.h"
+#include "../server/Response.h"
 
 namespace Application
 {
 	bool test(HttpClient::Request &, HttpClient::Response &);
-};
+}

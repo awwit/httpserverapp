@@ -10,22 +10,15 @@
 
 namespace HttpClient
 {
-	WebSocket::WebSocket(const WebSocket &obj) noexcept : sock(obj.sock)
-	{
+	WebSocket::WebSocket(const WebSocket &obj) noexcept : sock(obj.sock) {}
 
-	}
-
-	WebSocket::WebSocket(Socket::Adapter *adapter) noexcept : sock(adapter)
-	{
-
-	}
+	WebSocket::WebSocket(Socket::Adapter *adapter) noexcept : sock(adapter) {}
 
 	std::vector<char> WebSocket::packDataToMessageFrame(const void *data, const size_t size)
 	{
 		std::vector<char> frame;
 
-		if (0 == size)
-		{
+		if (0 == size) {
 			return frame;
 		}
 
@@ -37,20 +30,16 @@ namespace HttpClient
 
 		size_t cur_pos = sizeof(uint8_t) * 2;
 
-		if (size <= 125)
-		{
+		if (size <= 125) {
 			frame[1] = size;
 		}
-		else if (size <= 65536)
-		{
+		else if (size <= 65536) {
 			frame[1] = 126;
 
 			*reinterpret_cast<uint16_t *>(&frame[2]) = htons(size);
 
 			cur_pos += sizeof(uint16_t);
-		}
-		else // More
-		{
+		} else { // More
 			frame[1] = 127;
 
 			*reinterpret_cast<uint64_t *>(&frame[2]) = Utils::hton64(size);
@@ -65,13 +54,11 @@ namespace HttpClient
 		return frame;
 	}
 
-	Socket::Adapter *WebSocket::getSocket() noexcept
-	{
+	Socket::Adapter *WebSocket::getSocket() noexcept {
 		return this->sock;
 	}
 
-	const Socket::Adapter *WebSocket::getSocket() const noexcept
-	{
+	const Socket::Adapter *WebSocket::getSocket() const noexcept {
 		return this->sock;
 	}
 
@@ -81,8 +68,7 @@ namespace HttpClient
 
 		const long recv_size = this->sock->nonblock_recv(buf, timeout);
 
-		if (recv_size <= 0)
-		{
+		if (recv_size <= 0) {
 			return recv_size;
 		}
 
@@ -90,8 +76,7 @@ namespace HttpClient
 
 		const uint8_t info_frame = buf[0];
 
-		if ( (info_frame & 0x08) == 0x08) // opcode 0x08 — close connection
-		{
+		if ( (info_frame & 0x08) == 0x08) { // opcode 0x08 — close connection
 			return -1;
 		}
 
@@ -105,34 +90,25 @@ namespace HttpClient
 
 		uint64_t frame_size;
 
-		if (info_size <= 125)
-		{
+		if (info_size <= 125) {
 			frame_size = info_size;
 		}
-		else if (info_size == 126)
-		{
+		else if (info_size == 126) {
 			frame_size = ntohs(*reinterpret_cast<uint16_t *>(&buf[cur_pos]) );
-
 			cur_pos += sizeof(uint16_t);
-		}
-		else // if (info_size == 127)
-		{
+		} else { // if (info_size == 127)
 			frame_size = Utils::ntoh64(*reinterpret_cast<uint64_t *>(&buf[cur_pos]) );
-
 			cur_pos += sizeof(uint64_t);
 		}
 
-		if (frame_size > (buf.size() - cur_pos) )
-		{
+		if (frame_size > (buf.size() - cur_pos) ) {
 			return -1; // Close connection
 		}
 
 		uint32_t mask;
 
-		if (is_mask_set)
-		{
+		if (is_mask_set) {
 			mask = *reinterpret_cast<uint32_t *>(&buf[cur_pos]);
-
 			cur_pos += sizeof(uint32_t);
 		}
 
@@ -142,22 +118,18 @@ namespace HttpClient
 
 		frame.assign(buf.cbegin() + cur_pos, buf.cbegin() + recv_size);
 
-		if (is_mask_set)
-		{
-			if (align)
-			{
+		if (is_mask_set) {
+			if (align) {
 				frame.insert(frame.cend(), align, 0);
 			}
 
 			uint32_t *addr = reinterpret_cast<uint32_t *>(frame.data() );
 
-			for (size_t i = 0; i < frame.size() / sizeof(uint32_t); ++i)
-			{
+			for (size_t i = 0; i < frame.size() / sizeof(uint32_t); ++i) {
 				addr[i] ^= mask;
 			}
 
-			if (align)
-			{
+			if (align) {
 				frame.erase(frame.cend() - align, frame.cend() );
 			}
 		}
@@ -169,8 +141,7 @@ namespace HttpClient
 	{
 		const std::vector<char> frame = WebSocket::packDataToMessageFrame(data, length);
 
-		if (frame.empty() )
-		{
+		if (frame.empty() ) {
 			return 0;
 		}
 
@@ -181,16 +152,14 @@ namespace HttpClient
 	{
 		const std::vector<char> frame = WebSocket::packDataToMessageFrame(str.data(), str.length() );
 
-		if (frame.empty() )
-		{
+		if (frame.empty() ) {
 			return 0;
 		}
 
 		return this->sock->nonblock_send(frame.data(), frame.size(), timeout);
 	}
 
-	void WebSocket::close() noexcept
-	{
+	void WebSocket::close() noexcept {
 		this->sock->close();
 	}
-};
+}

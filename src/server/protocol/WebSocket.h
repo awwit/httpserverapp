@@ -27,4 +27,4 @@ namespace HttpClient
 
 		void close() noexcept;
 	};
-};
+}

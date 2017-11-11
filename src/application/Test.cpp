@@ -145,4 +145,4 @@ namespace Application
 
 		return EXIT_SUCCESS;
 	}
-};
+}
