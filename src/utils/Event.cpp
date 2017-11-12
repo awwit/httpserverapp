@@ -32,7 +32,7 @@ namespace Utils
 		if (this->signaled.load() == false) {
 			std::unique_lock<std::mutex> lck(this->mtx);
 
-			is_timeout = false == this->cv.wait_for(lck, ms, [this] { return this->notifed(); } );
+			is_timeout = this->cv.wait_for(lck, ms, [this] { return this->notifed(); } ) == false;
 		}
 
 		if (false == this->manually) {
