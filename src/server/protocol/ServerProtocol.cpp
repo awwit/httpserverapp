@@ -3,7 +3,11 @@
 
 namespace HttpServer
 {
-	ServerProtocol::ServerProtocol(Socket::Adapter *sock) : sock(sock) {}
+	ServerProtocol::ServerProtocol(Socket::Adapter *sock) noexcept
+		: sock(sock)
+	{
+
+	}
 
 	Socket::Adapter *ServerProtocol::getSocket() noexcept {
 		return this->sock;

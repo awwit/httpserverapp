@@ -8,7 +8,10 @@
 
 namespace HttpServer
 {
-	ServerHttp2::ServerHttp2(Socket::Adapter *sock, Http2::OutStream *stream)
+	ServerHttp2::ServerHttp2(
+		Socket::Adapter *sock,
+		Http2::OutStream *stream
+	) noexcept
 		: ServerProtocol(sock), stream(stream)
 	{
 
@@ -26,7 +29,7 @@ namespace HttpServer
 
 		std::random_device rd;
 
-		uint8_t padding = rd();
+		uint8_t padding = uint8_t(rd());
 
 		while (dataSize <= padding) {
 			padding /= 2;
@@ -35,17 +38,30 @@ namespace HttpServer
 		return padding;
 	}
 
-	bool ServerHttp2::sendHeaders(const Http::StatusCode status, std::vector<std::pair<std::string, std::string> > &headers, const std::chrono::milliseconds &timeout, const bool endStream) const
-	{
+	bool ServerHttp2::sendHeaders(
+		const Http::StatusCode status,
+		std::vector<std::pair<std::string, std::string> > &headers,
+		const std::chrono::milliseconds &timeout,
+		const bool endStream
+	) const {
 		std::vector<char> buf;
 		buf.reserve(4096);
-		buf.resize(Http2::FRAME_HEADER_SIZE + sizeof(uint8_t) );
 
-		headers.emplace(headers.begin(), ":status", std::to_string(static_cast<int>(status) ) );
+		buf.resize(
+			Http2::FRAME_HEADER_SIZE + sizeof(uint8_t)
+		);
+
+		headers.emplace(
+			headers.begin(),
+			":status",
+			std::to_string(static_cast<int>(status) )
+		);
 
 		HPack::pack(buf, headers, this->stream->dynamic_table);
 
-		uint32_t data_size = buf.size() - Http2::FRAME_HEADER_SIZE - sizeof(uint8_t);
+		size_t data_size = (
+			buf.size() - Http2::FRAME_HEADER_SIZE - sizeof(uint8_t)
+		);
 
 		const uint8_t padding = getPaddingSize(data_size);
 		const uint16_t padding_size = padding + sizeof(uint8_t);
@@ -54,9 +70,13 @@ namespace HttpServer
 			data_size = this->stream->settings.max_frame_size - padding_size;
 		}
 
-		const size_t frame_size = data_size + padding_size;
+		const uint32_t frame_size = static_cast<uint32_t>(
+			data_size + padding_size
+		);
 
-		buf.resize(frame_size + Http2::FRAME_HEADER_SIZE);
+		buf.resize(
+			frame_size + Http2::FRAME_HEADER_SIZE
+		);
 
 		Http2::FrameFlag flags = Http2::FrameFlag::END_HEADERS;
 
@@ -66,25 +86,41 @@ namespace HttpServer
 
 		flags |= Http2::FrameFlag::PADDED;
 
-		buf[Http2::FRAME_HEADER_SIZE] = padding;
+		buf[Http2::FRAME_HEADER_SIZE] = char(padding);
 
 		if (padding) {
-			std::fill(buf.end() - padding, buf.end(), 0);
+			std::fill(
+				buf.end() - padding,
+				buf.end(),
+				0
+			);
 		}
 
-		this->stream->setHttp2FrameHeader(reinterpret_cast<uint8_t *>(buf.data() ), frame_size, Http2::FrameType::HEADERS, flags);
+		this->stream->setHttp2FrameHeader(
+			reinterpret_cast<uint8_t *>(buf.data() ),
+			frame_size,
+			Http2::FrameType::HEADERS,
+			flags
+		);
 
 		const std::unique_lock<std::mutex> lock(*this->stream->mtx);
 
 		return this->sock->nonblock_send(buf.data(), buf.size(), timeout) > 0;
 	}
 
-	void ServerHttp2::sendWindowUpdate(const uint32_t size, const std::chrono::milliseconds &timeout) const
-	{
+	void ServerHttp2::sendWindowUpdate(
+		const uint32_t size,
+		const std::chrono::milliseconds &timeout
+	) const {
 		std::array<uint8_t, Http2::FRAME_HEADER_SIZE + sizeof(uint32_t)> buf;
 		uint8_t *addr = buf.data();
 
-		addr = this->stream->setHttp2FrameHeader(addr, sizeof(uint32_t), Http2::FrameType::WINDOW_UPDATE, Http2::FrameFlag::EMPTY);
+		addr = this->stream->setHttp2FrameHeader(
+			addr,
+			sizeof(uint32_t),
+			Http2::FrameType::WINDOW_UPDATE,
+			Http2::FrameFlag::EMPTY
+		);
 
 		*reinterpret_cast<uint32_t *>(addr) = ::htonl(size);
 
@@ -93,18 +129,27 @@ namespace HttpServer
 		this->sock->nonblock_send(buf.data(), buf.size(), timeout);
 	}
 
-	long ServerHttp2::sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream) const
-	{
+	long ServerHttp2::sendData(
+		const void *src,
+		const size_t size,
+		const std::chrono::milliseconds &timeout,
+		const bool endStream
+	) const noexcept {
 		const uint8_t *data = reinterpret_cast<const uint8_t *>(src);
 
 		std::vector<uint8_t> buf;
-		buf.reserve(this->stream->settings.max_frame_size + Http2::FRAME_HEADER_SIZE);
+
+		buf.reserve(
+			this->stream->settings.max_frame_size + Http2::FRAME_HEADER_SIZE
+		);
 
 		size_t total = 0;
 
 		while (total < size)
 		{
-			size_t data_size = (size - total < this->stream->settings.max_frame_size) ? size - total : this->stream->settings.max_frame_size;
+			size_t data_size = (size - total < this->stream->settings.max_frame_size)
+				? size - total
+				: this->stream->settings.max_frame_size;
 
 			const uint8_t padding = getPaddingSize(data_size);
 			const uint16_t padding_size = padding + sizeof(uint8_t);
@@ -113,19 +158,22 @@ namespace HttpServer
 				data_size = this->stream->settings.max_frame_size - padding_size;
 			}
 
-			const size_t frame_size = data_size + padding_size;
+			const uint32_t frame_size = static_cast<uint32_t>(
+				data_size + padding_size
+			);
 
 			buf.resize(frame_size + Http2::FRAME_HEADER_SIZE);
 
-			if (static_cast<int32_t>(this->stream->window_size_out - this->stream->settings.max_frame_size) <= 0)
+			if (this->stream->window_size_out - long(this->stream->settings.max_frame_size) <= 0)
 			{
-				size_t update_size = this->stream->settings.initial_window_size + (size - total) - this->stream->window_size_out;
+				size_t update_size = this->stream->settings.initial_window_size +
+					(size - total) - size_t(this->stream->window_size_out);
 
 				if (update_size > Http2::MAX_WINDOW_UPDATE) {
 					update_size = Http2::MAX_WINDOW_UPDATE;
 				}
 
-				this->sendWindowUpdate(static_cast<uint32_t>(update_size), timeout);
+				this->sendWindowUpdate(uint32_t(update_size), timeout);
 
 				this->stream->window_size_out += update_size;
 			}
@@ -144,17 +192,34 @@ namespace HttpServer
 				++cur;
 			}
 
-			this->stream->setHttp2FrameHeader(buf.data(), frame_size, Http2::FrameType::DATA, flags);
+			this->stream->setHttp2FrameHeader(
+				buf.data(),
+				frame_size,
+				Http2::FrameType::DATA,
+				flags
+			);
 
-			std::copy(data, data + data_size, buf.begin() + cur);
+			std::copy(
+				data,
+				data + data_size,
+				buf.data() + cur
+			);
 
 			if (padding) {
-				std::fill(buf.end() - padding, buf.end(), 0);
+				std::fill(
+					buf.end() - padding,
+					buf.end(),
+					0
+				);
 			}
 
 			this->stream->lock();
 
-			const long sended = this->sock->nonblock_send(buf.data(), buf.size(), timeout);
+			const long sended = this->sock->nonblock_send(
+				buf.data(),
+				buf.size(),
+				timeout
+			);
 
 			this->stream->unlock();
 
@@ -169,6 +234,6 @@ namespace HttpServer
 			total += data_size;
 		}
 
-		return static_cast<long>(total);
+		return long(total);
 	}
 }

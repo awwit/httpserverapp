@@ -12,12 +12,30 @@ namespace HttpServer
 		Http2::OutStream *stream;
 
 	public:
-		ServerHttp2(Socket::Adapter *sock, Http2::OutStream *stream);
-		virtual ~ServerHttp2() noexcept;
+		ServerHttp2(
+			Socket::Adapter *sock,
+			Http2::OutStream *stream
+		) noexcept;
 
-		void sendWindowUpdate(const uint32_t size, const std::chrono::milliseconds &timeout) const;
+		virtual ~ServerHttp2() noexcept override;
 
-		virtual bool sendHeaders(const Http::StatusCode status, std::vector<std::pair<std::string, std::string> > &headers, const std::chrono::milliseconds &timeout, const bool endStream = true) const override;
-		virtual long sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream = true) const override;
+		void sendWindowUpdate(
+			const uint32_t size,
+			const std::chrono::milliseconds &timeout
+		) const;
+
+		virtual bool sendHeaders(
+			const Http::StatusCode status,
+			std::vector<std::pair<std::string, std::string> > &headers,
+			const std::chrono::milliseconds &timeout,
+			const bool endStream = true
+		) const override;
+
+		virtual long sendData(
+			const void *src,
+			const size_t size,
+			const std::chrono::milliseconds &timeout,
+			const bool endStream = true
+		) const noexcept override;
 	};
 }

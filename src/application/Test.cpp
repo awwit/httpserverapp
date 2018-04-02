@@ -5,8 +5,10 @@
 
 namespace Application
 {
-	bool test(HttpServer::Request &request, HttpServer::Response &response)
-	{
+	bool test(
+		HttpServer::Request &request,
+		HttpServer::Response &response
+	) {
 		// Output incoming headers
 
 		std::string s = R"(<table>

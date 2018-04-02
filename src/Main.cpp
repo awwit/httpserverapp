@@ -11,8 +11,10 @@ EXPORT bool application_init(const char *root)
 	return true;
 }
 
-EXPORT int application_call(Transfer::app_request *request, Transfer::app_response *response)
-{
+EXPORT int application_call(
+	Transfer::app_request *request,
+	Transfer::app_response *response
+) {
 	// Allocate memory on the stack
 	uint8_t addr[sizeof(Socket::AdapterTls)];
 
@@ -30,12 +32,12 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 
 	int result = EXIT_SUCCESS;
 
-	if (isSwitchingProtocols(proc_request, proc_response) )
-	{
+	if (isSwitchingProtocols(proc_request, proc_response) ) {
 
-	}
-	else if (std::string::npos == absolute_path.find("/../") && System::isFileExists(absolute_path) )
-	{
+	} else if (
+		std::string::npos == absolute_path.find("/../") &&
+		System::isFileExists(absolute_path)
+	) {
 		auto it_connection = proc_request.headers.find("connection");
 
 		if (proc_request.headers.cend() != it_connection) {
@@ -43,9 +45,7 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 		}
 
 		proc_response.headers["x-sendfile"] = absolute_path;
-	}
-	else
-	{
+	} else {
 		// Call application
 		result = Application::test(proc_request, proc_response);
 	}
@@ -55,7 +55,11 @@ EXPORT int application_call(Transfer::app_request *request, Transfer::app_respon
 	if (proc_response.headers.size() ) {
 		response->data_size = Utils::getPackContainerSize(proc_response.headers);
 		response->response_data = new uint8_t[response->data_size];
-		Utils::packContainer(reinterpret_cast<uint8_t *>(response->response_data), proc_response.headers);
+
+		Utils::packContainer(
+			reinterpret_cast<uint8_t *>(response->response_data),
+			proc_response.headers
+		);
 	}
 
 	freeProtocolData(&proc_response);

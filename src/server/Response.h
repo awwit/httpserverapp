@@ -17,9 +17,19 @@ namespace HttpServer
 		Http::StatusCode status;
 
 	public:
-		void setStatusCode(const Http::StatusCode status);
+		void setStatusCode(const Http::StatusCode status) noexcept;
 
-		bool sendHeaders(const std::vector<std::pair<std::string, std::string> > &additional, const std::chrono::milliseconds &timeout, const bool endStream = true);
-		long sendData(const void *src, const size_t size, const std::chrono::milliseconds &timeout, const bool endStream = true) const;
+		bool sendHeaders(
+			const std::vector<std::pair<std::string, std::string> > &additional,
+			const std::chrono::milliseconds &timeout,
+			const bool endStream = true
+		) const;
+
+		long sendData(
+			const void *src,
+			const size_t size,
+			const std::chrono::milliseconds &timeout,
+			const bool endStream = true
+		) const noexcept;
 	};
 }

@@ -13,8 +13,10 @@
 #include <locale>
 #include <codecvt>
 
-Socket::Adapter *createSocketAdapter(Transfer::app_request *request, void *addr)
-{
+Socket::Adapter *createSocketAdapter(
+	Transfer::app_request *request,
+	void *addr
+) {
 	if (request->tls_session) {
 		return new (addr) Socket::AdapterTls(request->tls_session);
 	}
@@ -22,8 +24,7 @@ Socket::Adapter *createSocketAdapter(Transfer::app_request *request, void *addr)
 	return new (addr) Socket::AdapterDefault(request->socket);
 }
 
-void destroySocketAdapter(Socket::Adapter *adapter)
-{
+void destroySocketAdapter(Socket::Adapter *adapter) {
 	if (adapter) {
 		adapter->~Adapter();
 	}
@@ -37,7 +38,13 @@ std::string utf8ToLocal(const std::string &u8str)
 	std::wstring wstr = conv.from_bytes(u8str);
 
 	std::string str(wstr.size(), 0);
-	std::use_facet<std::ctype<wchar_t> >(loc).narrow(wstr.data(), wstr.data() + wstr.size(), '?', &str.front() );
+
+	std::use_facet<std::ctype<wchar_t> >(loc).narrow(
+		wstr.data(),
+		wstr.data() + wstr.size(),
+		'?',
+		&str.front()
+	);
 
 	return str;
 }
@@ -46,7 +53,11 @@ std::string getClearPath(const std::string &path)
 {
 	const size_t pos = path.find_first_of("?#");
 
-	const std::string clean = Utils::urlDecode(std::string::npos == pos ? path : path.substr(0, pos) );
+	const std::string clean = Utils::urlDecode(
+		std::string::npos == pos
+			? path
+			: path.substr(0, pos)
+	);
 
 #ifdef WIN32
 	return utf8ToLocal(clean);
@@ -55,8 +66,10 @@ std::string getClearPath(const std::string &path)
 #endif
 }
 
-static void getIncomingVars(std::unordered_multimap<std::string, std::string> &params, const std::string &uri)
-{
+static void getIncomingVars(
+	std::unordered_multimap<std::string, std::string> &params,
+	const std::string &uri
+) {
 	const size_t start = uri.find('?');
 
 	if (std::string::npos == start) {
@@ -69,8 +82,11 @@ static void getIncomingVars(std::unordered_multimap<std::string, std::string> &p
 		return;
 	}
 
-	for (size_t var_pos = start + 1, var_end = 0; std::string::npos != var_end; var_pos = var_end + 1)
-	{
+	for (
+		size_t var_pos = start + 1, var_end = 0;
+		std::string::npos != var_end;
+		var_pos = var_end + 1
+	) {
 		var_end = uri.find('&', var_pos);
 
 		if (var_end > finish) {
@@ -79,27 +95,53 @@ static void getIncomingVars(std::unordered_multimap<std::string, std::string> &p
 
 		size_t delimiter = uri.find('=', var_pos);
 
-		if (delimiter >= var_end)
-		{
-			std::string var_name = Utils::urlDecode(uri.substr(var_pos, std::string::npos != var_end ? var_end - var_pos : std::string::npos) );
+		if (delimiter >= var_end) {
+			std::string var_name = Utils::urlDecode(
+				uri.substr(
+					var_pos,
+					std::string::npos != var_end
+						? var_end - var_pos
+						: std::string::npos
+				)
+			);
 
-			params.emplace(std::move(var_name), std::string() );
-		}
-		else
-		{
-			std::string var_name = Utils::urlDecode(uri.substr(var_pos, delimiter - var_pos) );
+			params.emplace(
+				std::move(var_name),
+				std::string()
+			);
+		} else {
+			std::string var_name = Utils::urlDecode(
+				uri.substr(
+					var_pos,
+					delimiter - var_pos
+				)
+			);
 
 			++delimiter;
 
-			std::string var_value = Utils::urlDecode(uri.substr(delimiter, std::string::npos != var_end ? var_end - delimiter : std::string::npos) );
+			std::string var_value = Utils::urlDecode(
+				uri.substr(
+					delimiter,
+					std::string::npos != var_end
+						? var_end - delimiter
+						: std::string::npos
+				)
+			);
 
-			params.emplace(std::move(var_name), std::move(var_value) );
+			params.emplace(
+				std::move(var_name),
+				std::move(var_value)
+			);
 		}
 	}
 }
 
-bool initServerObjects(HttpServer::Request *procRequest, HttpServer::Response *procResponse, const Transfer::app_request *request, Socket::Adapter *socket_adapter)
-{
+bool initServerObjects(
+	HttpServer::Request *procRequest,
+	HttpServer::Response *procResponse,
+	const Transfer::app_request *request,
+	Socket::Adapter *socket_adapter
+) {
 	const uint8_t *src = reinterpret_cast<const uint8_t *>(request->request_data);
 
 	size_t protocol_number;
@@ -151,26 +193,25 @@ bool initServerObjects(HttpServer::Request *procRequest, HttpServer::Response *p
 			src = Utils::unpackString(path, src);
 			src = Utils::unpackString(method, src);
 
-			size_t stream_id;
-
-			src = Utils::unpackNumber(&stream_id, src);
-
-			Http2::ConnectionSettings settings;
-
 			size_t number;
 
 			src = Utils::unpackNumber(&number, src);
-			settings.header_table_size = number;
+			const uint32_t stream_id = static_cast<uint32_t>(number);
+
+			Http2::ConnectionSettings settings;
+
 			src = Utils::unpackNumber(&number, src);
-			settings.enable_push = number;
+			settings.header_table_size = static_cast<uint32_t>(number);
 			src = Utils::unpackNumber(&number, src);
-			settings.max_concurrent_streams = number;
+			settings.enable_push = static_cast<uint32_t>(number);
 			src = Utils::unpackNumber(&number, src);
-			settings.initial_window_size = number;
+			settings.max_concurrent_streams = static_cast<uint32_t>(number);
 			src = Utils::unpackNumber(&number, src);
-			settings.max_frame_size = number;
+			settings.initial_window_size = static_cast<uint32_t>(number);
 			src = Utils::unpackNumber(&number, src);
-			settings.max_header_list_size = number;
+			settings.max_frame_size = static_cast<uint32_t>(number);
+			src = Utils::unpackNumber(&number, src);
+			settings.max_header_list_size = static_cast<uint32_t>(number);
 
 			std::deque<std::pair<std::string, std::string> > dynamic_table;
 			src = Utils::unpackVector(dynamic_table, src);
@@ -190,7 +231,16 @@ bool initServerObjects(HttpServer::Request *procRequest, HttpServer::Response *p
 
 			getIncomingVars(params, path);
 
-			Http2::OutStream *stream = new Http2::OutStream(stream_id, settings, Http2::DynamicTable(settings.header_table_size, settings.max_header_list_size, std::move(dynamic_table) ), mtx);
+			Http2::OutStream *stream = new Http2::OutStream(
+				stream_id,
+				settings,
+				Http2::DynamicTable(
+					settings.header_table_size,
+					settings.max_header_list_size,
+					std::move(dynamic_table)
+				),
+				mtx
+			);
 
 			prot = new HttpServer::ServerHttp2(socket_adapter, stream);
 
@@ -227,17 +277,18 @@ bool initServerObjects(HttpServer::Request *procRequest, HttpServer::Response *p
 	return success;
 }
 
-void freeProtocolData(HttpServer::Response *response)
-{
+void freeProtocolData(HttpServer::Response *response) {
 	if (response) {
 		delete response->prot;
 	}
 }
 
-bool isSwitchingProtocols(const HttpServer::Request &request, HttpServer::Response &response)
-{
+bool isSwitchingProtocols(
+	const HttpServer::Request &request,
+	HttpServer::Response &response
+) {
 	// Check for https is not set
-	if (request.prot->getSocket()->get_tls_session() != 0) {
+	if (request.prot->getSocket()->get_tls_session() != nullptr) {
 		return false;
 	}
 
@@ -305,7 +356,10 @@ bool isSwitchingProtocols(const HttpServer::Request &request, HttpServer::Respon
 
 	const std::string headers = "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n";
 
-	response.prot->getSocket()->nonblock_send(headers, std::chrono::milliseconds(5000) );
+	response.prot->getSocket()->nonblock_send(
+		headers,
+		std::chrono::milliseconds(5000)
+	);
 
 	return true;
 }
