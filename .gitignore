@@ -1,1 +1,3 @@
 build
+projects/build*
+projects/qt-creator/*.user

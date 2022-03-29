@@ -112,25 +112,21 @@ namespace HttpClient
 			cur_pos += sizeof(uint32_t);
 		}
 
-		const uint8_t align = (recv_size - cur_pos) % sizeof(uint32_t);
-
-		frame.reserve(recv_size - cur_pos + align);
+		frame.reserve(recv_size - cur_pos);
 
 		frame.assign(buf.cbegin() + cur_pos, buf.cbegin() + recv_size);
 
 		if (is_mask_set) {
-			if (align) {
-				frame.insert(frame.cend(), align, 0);
-			}
+			const size_t aligned = frame.size() - (frame.size() % sizeof(mask));
 
-			uint32_t *addr = reinterpret_cast<uint32_t *>(frame.data() );
+			uint32_t * const addr = reinterpret_cast<uint32_t *>(frame.data() );
 
-			for (size_t i = 0; i < frame.size() / sizeof(uint32_t); ++i) {
+			for (size_t i = 0; i < aligned / sizeof(uint32_t); ++i) {
 				addr[i] ^= mask;
 			}
 
-			if (align) {
-				frame.erase(frame.cend() - align, frame.cend() );
+			for (size_t i = aligned; i < frame.size(); ++i) {
+				frame[i] ^= reinterpret_cast<char *>(&mask)[i % sizeof(mask)];
 			}
 		}
 
